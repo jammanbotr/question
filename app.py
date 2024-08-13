@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 def generate_questions(subject, standard, content):
-    API_KEY = 'AIzaSyBBZkZE3-CLz0DpeIDGgRTJiPSHFNVfZB4'  # 실제 API 키로 교체하세요
+    API_KEY = st.secrets["AIzaSyBBZkZE3-CLz0DpeIDGgRTJiPSHFNVfZB4"]
     API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent'
 
     prompt = f"""
