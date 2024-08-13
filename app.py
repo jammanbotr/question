@@ -2,9 +2,14 @@ import streamlit as st
 import requests
 
 def generate_questions(subject, standard, content):
-    API_KEY = st.secrets["AIzaSyBBZkZE3-CLz0DpeIDGgRTJiPSHFNVfZB4"]
-    API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent'
+    try:
+        API_KEY = st.secrets["GEMINI_API_KEY"]
+    except KeyError:
+        st.error("API 키가 설정되지 않았습니다. 관리자에게 문의하세요.")
+        return []
 
+    API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent'
+    
     prompt = f"""
     과목: {subject}
     성취기준: {standard}
@@ -22,12 +27,18 @@ def generate_questions(subject, standard, content):
                 "contents": [{"parts": [{"text": prompt}]}]
             }
         )
+        response.raise_for_status()  # HTTP 오류 발생 시 예외 발생
         data = response.json()
         questions = data['candidates'][0]['content']['parts'][0]['text'].split('\n')
         return [q.strip() for q in questions if q.strip()]
+    except requests.RequestException as e:
+        st.error(f"API 요청 중 오류 발생: {e}")
+    except KeyError as e:
+        st.error(f"응답 데이터 처리 중 오류 발생: {e}")
     except Exception as e:
-        st.error(f"오류 발생: {e}")
-        return ["질문 생성 중 오류가 발생했습니다. 다시 시도해주세요."]
+        st.error(f"예상치 못한 오류 발생: {e}")
+    
+    return ["질문 생성 중 오류가 발생했습니다. 다시 시도해주세요."]
 
 # Streamlit 앱 코드
 st.title('초등학교 수업 탐구질문 생성기')
@@ -41,8 +52,9 @@ content = st.text_area('학습 내용 입력:')
 if st.button('탐구질문 생성하기'):
     if subject and standard and content:
         questions = generate_questions(subject, standard, content)
-        st.subheader('생성된 탐구질문:')
-        for i, q in enumerate(questions, 1):
-            st.write(f"{i}. {q}")
+        if questions:
+            st.subheader('생성된 탐구질문:')
+            for i, q in enumerate(questions, 1):
+                st.write(f"{i}. {q}")
     else:
         st.warning('모든 필드를 입력해주세요.')
