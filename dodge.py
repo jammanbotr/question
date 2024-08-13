@@ -35,26 +35,3 @@ with col2:
 st.write("## 현재 캐치 횟수")
 for student, count in st.session_state.counts.items():
     st.write(f"{student}: {count}")
-
-# PDF 생성 함수
-def create_pdf():
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt="우리반 피구 공 캐치 횟수", ln=1, align='C')
-    for student, count in st.session_state.counts.items():
-        pdf.cell(200, 10, txt=f"{student}: {count}", ln=1)
-    return pdf.output(dest='S').encode('latin-1')
-
-# 완료 버튼
-if st.button("완료"):
-    pdf = create_pdf()
-    b64 = base64.b64encode(pdf).decode()
-    href = f'<a href="data:application/pdf;base64,{b64}" download="피구_공_캐치_횟수.pdf">결과 다운로드</a>'
-    st.markdown(href, unsafe_allow_html=True)
-
-# 리셋 버튼
-if st.button("리셋"):
-    for student in students:
-        st.session_state.counts[student] = 0
-    st.experimental_rerun()
