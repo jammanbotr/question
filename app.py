@@ -5,7 +5,7 @@ def generate_questions(subject, standard, content):
     API_KEY = 'AIzaSyBBZkZE3-CLz0DpeIDGgRTJiPSHFNVfZB4'  # 실제 API 키로 교체하세요
     API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent'
 
-    prompt = f"과목: {subject}\n성취기준: {standard}\n학습내용: {content}\n\n위 정보를 바탕으로 학생들의 탐구를 위한 질문 3개를 생성해주세요."
+    prompt = f"과목: {subject}\n성취기준: {standard}\n학습내용: {content}\n\n위 정보를 바탕으로 초등학교 학생들의 탐구를 위한 질문 3개를 생성해주세요. 질문은 초등학교 학생들의 개념기반학습을 자극해서 일반화 및 원리의 상위지식으로 전이가 가능하면 좋습니다."
 
     try:
         response = requests.post(
