@@ -5,7 +5,15 @@ def generate_questions(subject, standard, content):
     API_KEY = 'AIzaSyBBZkZE3-CLz0DpeIDGgRTJiPSHFNVfZB4'  # 실제 API 키로 교체하세요
     API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent'
 
-    prompt = f"과목: {subject}\n성취기준: {standard}\n학습내용: {content}\n\n위 정보를 바탕으로 초등학교 학생들의 탐구를 위한 질문 3개를 생성해주세요. 질문은 초등학교 학생들의 개념기반학습을 자극해서 일반화 및 원리의 상위지식으로 전이가 가능하면 좋습니다."
+    prompt = f"""
+    과목: {subject}
+    성취기준: {standard}
+    학습내용: {content}
+
+    위 정보를 바탕으로 5-6학년 초등학생들이 이해하기 쉬운 탐구질문 3개를 만들어주세요. 
+    질문은 간단하고 명확해야 하며, 학생들의 호기심을 자극할 수 있어야 합니다.
+    각 질문 앞에 번호를 붙이지 말고, 질문만 작성해주세요.
+    """
 
     try:
         response = requests.post(
@@ -15,11 +23,13 @@ def generate_questions(subject, standard, content):
             }
         )
         data = response.json()
-        return data['candidates'][0]['content']['parts'][0]['text'].split('\n')
+        questions = data['candidates'][0]['content']['parts'][0]['text'].split('\n')
+        return [q.strip() for q in questions if q.strip()]
     except Exception as e:
         st.error(f"오류 발생: {e}")
         return ["질문 생성 중 오류가 발생했습니다. 다시 시도해주세요."]
 
+# Streamlit 앱 코드
 st.title('초등학교 수업 탐구질문 생성기')
 
 subjects = ['바른생활', '슬기로운 생활', '즐거운 생활', '국어', '사회', '도덕', '수학', '과학', '실과', '체육', '음악', '미술', '영어']
