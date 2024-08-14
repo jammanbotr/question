@@ -108,12 +108,12 @@ def create_google_calendar_links(event_info):
 
             # 알림 설정
             if reminder == "이벤트 2일 전":
-                reminder_param = "&recur=RRULE:FREQ=DAILY;COUNT=1&add=YES&reminders=2880"
+                reminder_param = "&reminders=2880"
             elif reminder == "당일 오전 8시 45분":
                 reminder_minutes = int((dt.replace(hour=8, minute=45) - dt).total_seconds() / 60)
-                reminder_param = f"&recur=RRULE:FREQ=DAILY;COUNT=1&add=YES&reminders={reminder_minutes}"
+                reminder_param = f"&reminders={reminder_minutes}"
             else:
-                reminder_param = "&recur=RRULE:FREQ=DAILY;COUNT=1&add=YES&reminders=10"  # 기본 10분 전 알림
+                reminder_param = "&reminders=10"  # 기본 10분 전 알림
 
             params = {
                 "text": text,
