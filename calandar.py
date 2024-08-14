@@ -1,7 +1,6 @@
 import streamlit as st
 import easyocr
 from PIL import Image
-import io
 import openai
 from datetime import datetime
 import urllib.parse
@@ -129,4 +128,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
