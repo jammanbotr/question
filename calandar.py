@@ -6,6 +6,7 @@ import openai
 from datetime import datetime
 import urllib.parse
 import numpy as np
+import time
 
 # Streamlit Secrets에서 API 키 가져오기
 api_key = st.secrets["OPENAI_API_KEY"]
@@ -17,7 +18,14 @@ openai.api_key = api_key
 def load_ocr():
     try:
         with st.spinner('OCR 모델을 로딩 중입니다. 잠시만 기다려주세요...'):
-            return easyocr.Reader(['ko', 'en'], gpu=False)
+            progress_bar = st.progress(0)
+            for i in range(100):
+                # 실제 진행 상황을 알 수 없으므로 임의로 진행바를 움직입니다
+                progress_bar.progress(i + 1)
+                time.sleep(0.1)
+            reader = easyocr.Reader(['ko', 'en'], gpu=False)
+            progress_bar.empty()
+            return reader
     except Exception as e:
         st.error(f"OCR 모델 로딩 중 오류 발생: {str(e)}")
         return None
