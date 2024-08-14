@@ -8,7 +8,6 @@ import numpy as np
 import time
 import json
 import re
-import requests
 
 # Streamlit Secrets에서 API 키 가져오기
 def get_api_key():
@@ -70,7 +69,7 @@ def analyze_text_with_ai(client, text):
 6. 알림_설정: 
    - '신청' 관련 내용이면 "이벤트 2일 전"
    - '참여' 또는 '참석' 관련 내용이면 "당일 오전 8시 45분"
-   - 그 외의 경우 "없음"
+   - 그 외의 경우 "기본 알림"
 
 현재 연도를 기준으로 정보를 추출하세요. JSON만 반환하고 다른 텍스트는 포함하지 마세요."""},
                 {"role": "user", "content": text}
@@ -80,16 +79,6 @@ def analyze_text_with_ai(client, text):
     except Exception as e:
         st.error(f"AI 분석 중 오류 발생: {str(e)}")
         return None
-
-def is_valid_location(location):
-    base_url = "https://maps.googleapis.com/maps/api/geocode/json"
-    params = {
-        "address": location,
-        "key": st.secrets["GOOGLE_MAPS_API_KEY"]
-    }
-    response = requests.get(base_url, params=params)
-    results = response.json()["results"]
-    return len(results) > 0
 
 def create_google_calendar_links(event_info):
     try:
@@ -101,7 +90,7 @@ def create_google_calendar_links(event_info):
         location = event_dict.get('위치', '')
         details = event_dict.get('설명', '')
         event_type = event_dict.get('이벤트_유형', '')
-        reminder = event_dict.get('알림_설정', '없음')
+        reminder = event_dict.get('알림_설정', '기본 알림')
 
         if isinstance(dates, str):
             dates = [dates]  # 단일 날짜를 리스트로 변환
@@ -119,12 +108,12 @@ def create_google_calendar_links(event_info):
 
             # 알림 설정
             if reminder == "이벤트 2일 전":
-                reminder_param = "&reminder=2880"
+                reminder_param = "&reminder=2880&reminder=10"
             elif reminder == "당일 오전 8시 45분":
-                reminder_minutes = (dt.replace(hour=8, minute=45) - dt).total_seconds() / 60
-                reminder_param = f"&reminder={int(reminder_minutes)}"
+                reminder_minutes = int((dt.replace(hour=8, minute=45) - dt).total_seconds() / 60)
+                reminder_param = f"&reminder={reminder_minutes}&reminder=10"
             else:
-                reminder_param = ""
+                reminder_param = "&reminder=10"  # 기본 10분 전 알림
 
             params = {
                 "text": text,
