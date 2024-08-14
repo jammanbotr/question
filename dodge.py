@@ -9,33 +9,25 @@ st.set_page_config(page_title="우리반 피구 공 캐치 횟수", layout="wide
 # CSS 스타일 정의
 st.markdown("""
 <style>
-    div.row-widget.stButton > button {
+    .stButton > button {
         width: 100%;
-        height: 60px;
-        font-size: 16px;
-        font-weight: bold;
-        margin: 2px 0px;
-        padding: 0px;
-        border-radius: 10px;
-    }
-    div.row-widget.stButton > button:hover {
-        background-color: #45a049;
+        padding: 5px 0;
+        font-size: 12px;
+        margin: 1px 0;
     }
     .student-count {
-        font-size: 14px;
-        font-weight: bold;
+        font-size: 10px;
         text-align: center;
-        margin-top: -15px;
-        margin-bottom: 5px;
+        margin: -5px 0 5px 0;
     }
-    .custom-div {
-        margin: 0px -1em;
-    }
-    /* 모든 화면 크기에 대해 3열 그리드 적용 */
-    .student-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 10px;
+    @media (max-width: 390px) {  /* iPhone 14 Pro width */
+        .stButton > button {
+            font-size: 10px;
+            padding: 2px 0;
+        }
+        .student-count {
+            font-size: 8px;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -50,32 +42,19 @@ students = ["피카츄", "라이츄", "파이리", "꼬부기", "버터플", "�
 if 'counts' not in st.session_state:
     st.session_state.counts = {student: 0 for student in students}
 
-# 3열 그리드 레이아웃 생성
-st.markdown('<div class="custom-div"><div class="student-grid">', unsafe_allow_html=True)
-for student in students:
-    col1, col2, col3 = st.columns([3, 1, 1])
-    with col1:
-        if st.button(f"{student}", key=f"btn_{student}"):
+# 4열 레이아웃 생성
+cols = st.columns(4)
+for i, student in enumerate(students):
+    with cols[i % 4]:
+        if st.button(student, key=f"btn_{student}"):
             st.session_state.counts[student] += 1
-    with col2:
         st.markdown(f"<p class='student-count'>{st.session_state.counts[student]}</p>", unsafe_allow_html=True)
-st.markdown('</div></div>', unsafe_allow_html=True)
 
-# 결과 표시
-st.write("## 현재 캐치 횟수")
+# 결과 표시 (간소화)
 df = pd.DataFrame(list(st.session_state.counts.items()), columns=['학생', '캐치 횟수'])
 
-# Altair를 사용한 바 차트 (y축을 자연수로 제한)
-chart = alt.Chart(df).mark_bar().encode(
-    x='학생',
-    y=alt.Y('캐치 횟수:Q', scale=alt.Scale(domain=(0, max(df['캐치 횟수']) + 1)), axis=alt.Axis(tickCount=max(df['캐치 횟수']) + 1)),
-    color=alt.value('#4CAF50')
-).properties(
-    width='container',
-    height=300
-)
-
-st.altair_chart(chart, use_container_width=True)
+# 간단한 바 차트
+st.bar_chart(df.set_index('학생'))
 
 # CSV 파일 생성 함수
 def get_csv():
@@ -95,10 +74,3 @@ with col2:
         for student in students:
             st.session_state.counts[student] = 0
         st.experimental_rerun()
-
-# Streamlit 실행을 위한 메인 함수
-def main():
-    pass
-
-if __name__ == "__main__":
-    main()
