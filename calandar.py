@@ -10,13 +10,10 @@ import json
 import re
 
 # Streamlit Secrets에서 API 키 가져오기
-def get_api_key():
-    return st.secrets["OPENAI_API_KEY"]
+api_key = st.secrets["OPENAI_API_KEY"]
 
 # OpenAI 클라이언트 초기화
-def init_openai_client():
-    api_key = get_api_key()
-    return OpenAI(api_key=api_key)
+client = OpenAI(api_key=api_key)
 
 # 사용할 모델 설정
 MODEL_NAME = "gpt-4o-mini"
@@ -54,7 +51,7 @@ def clean_json_string(json_string):
     json_string = json_string[json_string.find('{'):json_string.rfind('}')+1]
     return json_string
 
-def analyze_text_with_ai(client, text):
+def analyze_text_with_ai(text):
     try:
         completion = client.chat.completions.create(
             model=MODEL_NAME,
@@ -109,14 +106,9 @@ def create_google_calendar_links(event_info):
 def main():
     st.title("공문 이미지를 Google 캘린더 이벤트로 변환")
 
-    # API 키 확인
-    api_key = get_api_key()
     if not api_key:
         st.error("OpenAI API 키가 설정되지 않았습니다. Streamlit Secrets에서 'OPENAI_API_KEY'를 설정해주세요.")
         return
-
-    # OpenAI 클라이언트 초기화
-    client = init_openai_client()
 
     st.info(f"현재 사용 중인 AI 모델: {MODEL_NAME}")
 
@@ -132,7 +124,7 @@ def main():
                 if extracted_text:
                     st.text("추출된 텍스트:")
                     st.text(extracted_text)
-                    analyzed_info = analyze_text_with_ai(client, extracted_text)
+                    analyzed_info = analyze_text_with_ai(extracted_text)
                     if analyzed_info:
                         st.subheader("분석 결과")
                         st.json(analyzed_info)
@@ -142,23 +134,6 @@ def main():
                             st.subheader("Google 캘린더 링크")
                             for i, link in enumerate(calendar_links, 1):
                                 st.markdown(f"{i}. [Google 캘린더에 이벤트 {i} 추가]({link})")
-                            
-                            # 모든 일정 한 번에 추가하는 버튼
-                            st.markdown("""
-                            <button onclick="addAllEvents()">모든 일정 추가</button>
-                            <script>
-                            function addAllEvents() {
-                                const links = [
-                                    %s
-                                ];
-                                links.forEach((link, index) => {
-                                    setTimeout(() => {
-                                        window.open(link, '_blank');
-                                    }, index * 1000);
-                                });
-                            }
-                            </script>
-                            """ % ','.join([f"'{link}'" for link in calendar_links]), unsafe_allow_html=True)
                         else:
                             st.error("캘린더 링크 생성에 실패했습니다.")
                     else:
