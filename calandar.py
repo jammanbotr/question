@@ -3,13 +3,11 @@ import easyocr
 from PIL import Image
 from openai import OpenAI
 from datetime import datetime, timedelta
+import urllib.parse
 import numpy as np
 import time
 import json
 import re
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
 
 # Streamlit Secrets에서 API 키 가져오기
 def get_api_key():
@@ -82,58 +80,56 @@ def analyze_text_with_ai(client, text):
         st.error(f"AI 분석 중 오류 발생: {str(e)}")
         return None
 
-def create_google_calendar_event(event_info):
+def create_google_calendar_links(event_info):
     try:
+        base_url = "https://www.google.com/calendar/render?action=TEMPLATE"
         event_dict = json.loads(event_info)
         
-        creds = Credentials.from_authorized_user_file('token.json', ['https://www.googleapis.com/auth/calendar'])
-        service = build('calendar', 'v3', credentials=creds)
+        text = event_dict.get('주제', '')
+        dates = event_dict.get('일시', [])
+        location = event_dict.get('위치', '')
+        details = event_dict.get('설명', '')
+        event_type = event_dict.get('이벤트_유형', '')
+        reminder = event_dict.get('알림_설정', '기본 알림')
 
-        events = []
-        for date in event_dict.get('일시', []):
-            start_time = datetime.strptime(date, "%Y년 %m월 %d일 %H:%M")
-            end_time = start_time + timedelta(hours=1)
+        if isinstance(dates, str):
+            dates = [dates]  # 단일 날짜를 리스트로 변환
 
-            event = {
-                'summary': event_dict.get('주제', ''),
-                'location': event_dict.get('위치', ''),
-                'description': event_dict.get('설명', ''),
-                'start': {
-                    'dateTime': start_time.isoformat(),
-                    'timeZone': 'Asia/Seoul',
-                },
-                'end': {
-                    'dateTime': end_time.isoformat(),
-                    'timeZone': 'Asia/Seoul',
-                },
-                'reminders': {
-                    'useDefault': False,
-                    'overrides': [],
-                },
-            }
+        calendar_links = []
+        
+        for date in dates:
+            try:
+                dt = datetime.strptime(date, "%Y년 %m월 %d일 %H:%M")
+            except ValueError:
+                dt = datetime.now() + timedelta(days=7)
+            
+            formatted_time = dt.strftime("%Y%m%dT%H%M%S")
+            end_time = (dt + timedelta(hours=1)).strftime("%Y%m%dT%H%M%S")
 
-            reminder = event_dict.get('알림_설정', '기본 알림')
+            # 알림 설정
             if reminder == "이벤트 2일 전":
-                event['reminders']['overrides'].append({'method': 'popup', 'minutes': 2880})
+                reminder_param = "&reminder=2880"
             elif reminder == "당일 오전 8시 45분":
-                minutes_before = int((start_time.replace(hour=8, minute=45) - start_time).total_seconds() / 60)
-                event['reminders']['overrides'].append({'method': 'popup', 'minutes': minutes_before})
+                reminder_minutes = int((dt.replace(hour=8, minute=45) - dt).total_seconds() / 60)
+                if reminder_minutes < 0:
+                    reminder_minutes = 0
+                reminder_param = f"&reminder={reminder_minutes}"
             else:
-                event['reminders']['overrides'].append({'method': 'popup', 'minutes': 10})
+                reminder_param = "&reminder=10"  # 기본 10분 전 알림
 
-            events.append(event)
-
-        created_events = []
-        for event in events:
-            created_event = service.events().insert(calendarId='primary', body=event).execute()
-            created_events.append(created_event['htmlLink'])
-
-        return created_events
-    except HttpError as error:
-        st.error(f'Google Calendar API 오류 발생: {error}')
-        return None
+            params = {
+                "text": text,
+                "dates": f"{formatted_time}/{end_time}",
+                "details": details,
+                "location": location,
+            }
+            
+            calendar_link = f"{base_url}&{urllib.parse.urlencode(params)}{reminder_param}"
+            calendar_links.append(calendar_link)
+        
+        return calendar_links
     except Exception as e:
-        st.error(f"이벤트 생성 중 오류 발생: {str(e)}")
+        st.error(f"캘린더 링크 생성 중 오류 발생: {str(e)}")
         return None
 
 def main():
@@ -156,7 +152,7 @@ def main():
         image = Image.open(uploaded_file)
         st.image(image, caption='업로드된 이미지', use_column_width=True)
 
-        if st.button("이미지 분석 및 이벤트 생성"):
+        if st.button("이미지 분석 및 링크 생성"):
             with st.spinner('이미지를 분석 중입니다...'):
                 extracted_text = extract_text_from_image(image)
                 if extracted_text:
@@ -167,13 +163,13 @@ def main():
                         st.subheader("분석 결과")
                         st.json(analyzed_info)
 
-                        event_links = create_google_calendar_event(analyzed_info)
-                        if event_links:
-                            st.subheader("생성된 Google 캘린더 이벤트")
-                            for i, link in enumerate(event_links, 1):
-                                st.markdown(f"{i}. [Google 캘린더에서 이벤트 {i} 보기]({link})")
+                        calendar_links = create_google_calendar_links(analyzed_info)
+                        if calendar_links:
+                            st.subheader("Google 캘린더 링크")
+                            for i, link in enumerate(calendar_links, 1):
+                                st.markdown(f"{i}. [Google 캘린더에 이벤트 {i} 추가]({link})")
                         else:
-                            st.error("Google 캘린더 이벤트 생성에 실패했습니다.")
+                            st.error("캘린더 링크 생성에 실패했습니다.")
                     else:
                         st.error("AI 분석에 실패했습니다.")
                 else:
