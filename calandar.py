@@ -1,9 +1,8 @@
 import streamlit as st
 import easyocr
 from PIL import Image
-import io
 from openai import OpenAI
-from datetime import datetime
+from datetime import datetime, timedelta
 import urllib.parse
 import numpy as np
 import time
@@ -47,11 +46,8 @@ def extract_text_from_image(image):
         return None
 
 def clean_json_string(json_string):
-    # 코드 블록 표시 제거
     json_string = re.sub(r'```json\s*|\s*```', '', json_string)
-    # 맨 앞뒤 공백 제거
     json_string = json_string.strip()
-    # 첫 번째 '{' 부터 마지막 '}' 까지만 추출
     json_string = json_string[json_string.find('{'):json_string.rfind('}')+1]
     return json_string
 
@@ -60,7 +56,7 @@ def analyze_text_with_ai(text):
         completion = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[
-                {"role": "system", "content": "다음 텍스트에서 이벤트 정보를 추출해주세요. 주제, 일시, 위치, 설명을 JSON 형식으로 반환해주세요. JSON만 반환하고 다른 텍스트는 포함하지 마세요."},
+                {"role": "system", "content": "다음 텍스트에서 이벤트 정보를 추출해주세요. 주제, 일시(여러 개 가능), 위치, 설명을 JSON 형식으로 반환해주세요. 일시는 반드시 'YYYY년 MM월 DD일 HH:MM' 형식으로 제공해주세요. 현재 연도를 기준으로 합니다. 일시가 여러 개인 경우 배열로 반환해주세요. JSON만 반환하고 다른 텍스트는 포함하지 마세요."},
                 {"role": "user", "content": text}
             ]
         )
@@ -69,31 +65,40 @@ def analyze_text_with_ai(text):
         st.error(f"AI 분석 중 오류 발생: {str(e)}")
         return None
 
-def create_google_calendar_link(event_info):
+def create_google_calendar_links(event_info):
     try:
         base_url = "https://www.google.com/calendar/render?action=TEMPLATE"
-        
         event_dict = json.loads(event_info)
         
         text = event_dict.get('주제', '')
-        start_time = event_dict.get('일시', '')
+        dates = event_dict.get('일시', [])
         location = event_dict.get('위치', '')
         details = event_dict.get('설명', '')
-        
-        try:
-            dt = datetime.strptime(start_time, "%Y년 %m월 %d일 %H:%M")
-            formatted_time = dt.strftime("%Y%m%dT%H%M%S")
-        except:
-            formatted_time = ""
 
-        params = {
-            "text": text,
-            "dates": f"{formatted_time}/{formatted_time}",
-            "details": details,
-            "location": location,
-        }
+        if isinstance(dates, str):
+            dates = [dates]  # 단일 날짜를 리스트로 변환
+
+        calendar_links = []
         
-        return f"{base_url}&{urllib.parse.urlencode(params)}"
+        for date in dates:
+            try:
+                dt = datetime.strptime(date, "%Y년 %m월 %d일 %H:%M")
+            except ValueError:
+                dt = datetime.now() + timedelta(days=7)
+            
+            formatted_time = dt.strftime("%Y%m%dT%H%M%S")
+            end_time = (dt + timedelta(hours=1)).strftime("%Y%m%dT%H%M%S")
+
+            params = {
+                "text": text,
+                "dates": f"{formatted_time}/{end_time}",
+                "details": details,
+                "location": location,
+            }
+            
+            calendar_links.append(f"{base_url}&{urllib.parse.urlencode(params)}")
+        
+        return calendar_links
     except Exception as e:
         st.error(f"캘린더 링크 생성 중 오류 발생: {str(e)}")
         return None
@@ -124,10 +129,11 @@ def main():
                         st.subheader("분석 결과")
                         st.json(analyzed_info)
 
-                        calendar_link = create_google_calendar_link(analyzed_info)
-                        if calendar_link:
+                        calendar_links = create_google_calendar_links(analyzed_info)
+                        if calendar_links:
                             st.subheader("Google 캘린더 링크")
-                            st.markdown(f"[Google 캘린더에 이벤트 추가]({calendar_link})")
+                            for i, link in enumerate(calendar_links, 1):
+                                st.markdown(f"{i}. [Google 캘린더에 이벤트 {i} 추가]({link})")
                         else:
                             st.error("캘린더 링크 생성에 실패했습니다.")
                     else:
