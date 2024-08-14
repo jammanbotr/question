@@ -4,28 +4,38 @@ import base64
 import altair as alt
 
 # 페이지 설정
-st.set_page_config(page_title="우리반 피구 공 캐치 횟수", layout="centered")
+st.set_page_config(page_title="우리반 피구 공 캐치 횟수", layout="wide")
 
 # CSS 스타일 정의
 st.markdown("""
 <style>
     div.row-widget.stButton > button {
         width: 100%;
-        height: 80px;
-        font-size: 20px;
+        height: 60px;
+        font-size: 14px;
         font-weight: bold;
-        margin: 5px 0px;
+        margin: 2px 0px;
+        padding: 0px;
         border-radius: 10px;
     }
     div.row-widget.stButton > button:hover {
         background-color: #45a049;
     }
     .student-count {
-        font-size: 18px;
+        font-size: 12px;
         font-weight: bold;
         text-align: center;
-        margin-top: -5px;
-        margin-bottom: 15px;
+        margin-top: -15px;
+        margin-bottom: 5px;
+    }
+    .custom-div {
+        margin: 0px -1em;
+    }
+    @media (max-width: 640px) {
+        div.row-widget.stButton > button {
+            font-size: 12px;
+            height: 50px;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -40,11 +50,18 @@ students = ["피카츄", "라이츄", "파이리", "꼬부기", "버터플", "�
 if 'counts' not in st.session_state:
     st.session_state.counts = {student: 0 for student in students}
 
-# 학생별 버튼 생성
-for student in students:
-    if st.button(f"{student}", key=f"btn_{student}"):
-        st.session_state.counts[student] += 1
-    st.markdown(f"<p class='student-count'>{st.session_state.counts[student]}</p>", unsafe_allow_html=True)
+# 3열 레이아웃 생성
+st.markdown('<div class="custom-div">', unsafe_allow_html=True)
+for i in range(0, len(students), 3):
+    cols = st.columns(3)
+    for j in range(3):
+        if i+j < len(students):
+            student = students[i+j]
+            with cols[j]:
+                if st.button(f"{student}", key=f"btn_{student}"):
+                    st.session_state.counts[student] += 1
+                st.markdown(f"<p class='student-count'>{st.session_state.counts[student]}</p>", unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
 # 결과 표시
 st.write("## 현재 캐치 횟수")
