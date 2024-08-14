@@ -1,10 +1,11 @@
 import streamlit as st
-import pytesseract
+import easyocr
 from PIL import Image
 import io
 import openai
 from datetime import datetime
 import urllib.parse
+import numpy as np
 
 # Streamlit Secrets에서 API 키 가져오기
 api_key = st.secrets["OPENAI_API_KEY"]
@@ -12,9 +13,15 @@ api_key = st.secrets["OPENAI_API_KEY"]
 # OpenAI API 키 설정
 openai.api_key = api_key
 
+@st.cache_resource
+def load_ocr():
+    return easyocr.Reader(['ko', 'en'])
+
 def extract_text_from_image(image):
     try:
-        text = pytesseract.image_to_string(image, lang='kor+eng')
+        reader = load_ocr()
+        result = reader.readtext(np.array(image))
+        text = ' '.join([res[1] for res in result])
         return text
     except Exception as e:
         st.error(f"이미지에서 텍스트 추출 중 오류 발생: {str(e)}")
