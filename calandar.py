@@ -2,7 +2,7 @@ import streamlit as st
 import easyocr
 from PIL import Image
 import io
-import openai
+from openai import OpenAI
 from datetime import datetime
 import urllib.parse
 import numpy as np
@@ -11,8 +11,8 @@ import time
 # Streamlit Secrets에서 API 키 가져오기
 api_key = st.secrets["OPENAI_API_KEY"]
 
-# OpenAI API 키 설정
-openai.api_key = api_key
+# OpenAI 클라이언트 초기화
+client = OpenAI(api_key=api_key)
 
 @st.cache_resource
 def load_ocr():
@@ -44,12 +44,15 @@ def extract_text_from_image(image):
 
 def analyze_text_with_ai(text):
     try:
-        response = openai.Completion.create(
-            engine="gpt-4o-mini",
-            prompt=f"다음 텍스트에서 이벤트 정보를 추출해주세요. 주제, 일시, 위치, 설명을 JSON 형식으로 반환해주세요:\n\n{text}",
+        response = client.chat.completions.create(
+            model="gpt-4-0613",  # 또는 사용 가능한 최신 모델
+            messages=[
+                {"role": "system", "content": "다음 텍스트에서 이벤트 정보를 추출해주세요. 주제, 일시, 위치, 설명을 JSON 형식으로 반환해주세요."},
+                {"role": "user", "content": text}
+            ],
             max_tokens=150
         )
-        return response.choices[0].text.strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         st.error(f"AI 분석 중 오류 발생: {str(e)}")
         return None
@@ -88,7 +91,7 @@ def main():
     st.title("공문 이미지를 Google 캘린더 이벤트로 변환")
 
     # API 키 확인
-    if not openai.api_key:
+    if not api_key:
         st.error("OpenAI API 키가 설정되지 않았습니다. Streamlit Secrets에서 'OPENAI_API_KEY'를 설정해주세요.")
         return
 
