@@ -8,6 +8,7 @@ import numpy as np
 import time
 import json
 import re
+import requests
 
 # Streamlit Secrets에서 API 키 가져오기
 def get_api_key():
@@ -80,9 +81,15 @@ def analyze_text_with_ai(client, text):
         st.error(f"AI 분석 중 오류 발생: {str(e)}")
         return None
 
-def get_google_maps_link(location):
-    base_url = "https://www.google.com/maps/search/?api=1&query="
-    return base_url + urllib.parse.quote(location)
+def is_valid_location(location):
+    base_url = "https://maps.googleapis.com/maps/api/geocode/json"
+    params = {
+        "address": location,
+        "key": st.secrets["GOOGLE_MAPS_API_KEY"]
+    }
+    response = requests.get(base_url, params=params)
+    results = response.json()["results"]
+    return len(results) > 0
 
 def create_google_calendar_links(event_info):
     try:
@@ -118,10 +125,6 @@ def create_google_calendar_links(event_info):
                 reminder_param = f"&reminder={int(reminder_minutes)}"
             else:
                 reminder_param = ""
-
-            # 구글 지도 링크 추가
-            maps_link = get_google_maps_link(location)
-            details += f"\n\n위치: {maps_link}"
 
             params = {
                 "text": text,
@@ -174,23 +177,6 @@ def main():
                             st.subheader("Google 캘린더 링크")
                             for i, link in enumerate(calendar_links, 1):
                                 st.markdown(f"{i}. [Google 캘린더에 이벤트 {i} 추가]({link})")
-                            
-                            # 모든 일정 한 번에 추가하는 버튼
-                            st.markdown("""
-                            <button onclick="addAllEvents()">모든 일정 추가</button>
-                            <script>
-                            function addAllEvents() {
-                                const links = [
-                                    %s
-                                ];
-                                links.forEach((link, index) => {
-                                    setTimeout(() => {
-                                        window.open(link, '_blank');
-                                    }, index * 1000);
-                                });
-                            }
-                            </script>
-                            """ % ','.join([f"'{link}'" for link in calendar_links]), unsafe_allow_html=True)
                         else:
                             st.error("캘린더 링크 생성에 실패했습니다.")
                     else:
