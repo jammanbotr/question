@@ -5,7 +5,6 @@ from openai import OpenAI
 from datetime import datetime, timedelta
 import urllib.parse
 import numpy as np
-import time
 import json
 import re
 
@@ -14,6 +13,7 @@ def get_api_key():
     return st.secrets["OPENAI_API_KEY"]
 
 # OpenAI 클라이언트 초기화
+@st.cache_resource
 def init_openai_client():
     api_key = get_api_key()
     return OpenAI(api_key=api_key)
@@ -24,14 +24,7 @@ MODEL_NAME = "gpt-4o-mini"
 @st.cache_resource
 def load_ocr():
     try:
-        with st.spinner('OCR 모델을 로딩 중입니다. 잠시만 기다려주세요...'):
-            progress_bar = st.progress(0)
-            for i in range(100):
-                progress_bar.progress(i + 1)
-                time.sleep(0.1)
-            reader = easyocr.Reader(['ko', 'en'], gpu=False)
-            progress_bar.empty()
-            return reader
+        return easyocr.Reader(['ko', 'en'], gpu=False)
     except Exception as e:
         st.error(f"OCR 모델 로딩 중 오류 발생: {str(e)}")
         return None
@@ -89,7 +82,6 @@ def create_google_calendar_links(event_info):
         dates = event_dict.get('일시', [])
         location = event_dict.get('위치', '')
         details = event_dict.get('설명', '')
-        event_type = event_dict.get('이벤트_유형', '')
         reminder = event_dict.get('알림_설정', '기본 알림')
 
         if isinstance(dates, str):
@@ -110,9 +102,7 @@ def create_google_calendar_links(event_info):
             if reminder == "이벤트 2일 전":
                 reminder_param = "&reminder=2880"
             elif reminder == "당일 오전 8시 45분":
-                reminder_minutes = int((dt.replace(hour=8, minute=45) - dt).total_seconds() / 60)
-                if reminder_minutes < 0:
-                    reminder_minutes = 0
+                reminder_minutes = max(0, int((dt.replace(hour=8, minute=45) - dt).total_seconds() / 60))
                 reminder_param = f"&reminder={reminder_minutes}"
             else:
                 reminder_param = "&reminder=10"  # 기본 10분 전 알림
@@ -133,6 +123,7 @@ def create_google_calendar_links(event_info):
         return None
 
 def main():
+    st.set_page_config(page_title="공문 이미지를 Google 캘린더 이벤트로 변환", page_icon="📅")
     st.title("공문 이미지를 Google 캘린더 이벤트로 변환")
 
     # API 키 확인
