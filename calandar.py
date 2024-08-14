@@ -52,7 +52,7 @@ def analyze_text_with_ai(text):
             ],
             max_tokens=150
         )
-        return response['choices'][0]['message']['content'].strip()
+        return response.choices[0].message["content"].strip()
     except Exception as e:
         st.error(f"AI 분석 중 오류 발생: {str(e)}")
         return None
@@ -129,3 +129,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
