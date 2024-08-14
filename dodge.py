@@ -11,24 +11,26 @@ st.markdown("""
 <style>
     .stButton>button {
         width: 100%;
-        padding: 5px 0;
-        font-size: 14px;
+        padding: 10px 0;
+        font-size: 16px;
         font-weight: bold;
         border-radius: 10px;
         background-color: #4CAF50;
         color: white;
+        margin-bottom: 5px;
     }
     .stButton>button:hover {
         background-color: #45a049;
     }
     .student-count {
-        font-size: 12px;
+        font-size: 14px;
         font-weight: bold;
         text-align: center;
-        margin-top: -15px;
+        margin-top: -5px;
+        margin-bottom: 10px;
     }
     [data-testid="stHorizontalBlock"] {
-        gap: 0rem;
+        gap: 0.5rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -36,19 +38,17 @@ st.markdown("""
 # 제목
 st.title("우리반 피구 공 캐치 횟수")
 
-# 학생 명단 (20명으로 확장)
-students = ["피카츄", "라이츄", "파이리", "꼬부기", "버터플", "야도란", "피존투", "또가스",
-            "이상해씨", "푸린", "뮤", "미뇽", "잉어킹", "갸라도스", "토게피", "치코리타",
-            "리자몽", "루기아", "펄기아", "디아루가"]
+# 학생 명단
+students = ["피카츄", "라이츄", "파이리", "꼬부기", "버터플", "야도란", "피존투", "또가스"]
 
 # 세션 상태 초기화
 if 'counts' not in st.session_state:
     st.session_state.counts = {student: 0 for student in students}
 
-# 4열 5행 레이아웃 생성
-cols = st.columns(4)
+# 3열 레이아웃 생성
+cols = st.columns(3)
 for i, student in enumerate(students):
-    with cols[i % 4]:
+    with cols[i % 3]:
         if st.button(f"{student}", key=f"btn_{student}"):
             st.session_state.counts[student] += 1
         st.markdown(f"<p class='student-count'>{st.session_state.counts[student]}</p>", unsafe_allow_html=True)
@@ -60,7 +60,7 @@ df = pd.DataFrame(list(st.session_state.counts.items()), columns=['학생', '캐
 # Altair를 사용한 바 차트 (y축을 자연수로 제한)
 chart = alt.Chart(df).mark_bar().encode(
     x='학생',
-    y=alt.Y('캐치 횟수:Q', scale=alt.Scale(domain=(0, max(df['캐치 횟수']) + 1))),
+    y=alt.Y('캐치 횟수:Q', scale=alt.Scale(domain=(0, max(df['캐치 횟수']) + 1)), axis=alt.Axis(tickCount=max(df['캐치 횟수']) + 1)),
     color=alt.value('#4CAF50')
 ).properties(
     width=600,
