@@ -14,13 +14,15 @@ api_key = st.secrets["OPENAI_API_KEY"]
 # OpenAI 클라이언트 초기화
 client = OpenAI(api_key=api_key)
 
+# 사용할 모델 설정
+MODEL_NAME = "gpt-4o-mini"
+
 @st.cache_resource
 def load_ocr():
     try:
         with st.spinner('OCR 모델을 로딩 중입니다. 잠시만 기다려주세요...'):
             progress_bar = st.progress(0)
             for i in range(100):
-                # 실제 진행 상황을 알 수 없으므로 임의로 진행바를 움직입니다
                 progress_bar.progress(i + 1)
                 time.sleep(0.1)
             reader = easyocr.Reader(['ko', 'en'], gpu=False)
@@ -44,15 +46,14 @@ def extract_text_from_image(image):
 
 def analyze_text_with_ai(text):
     try:
-        response = client.chat.completions.create(
-            model="gpt-4-0613",  # 또는 사용 가능한 최신 모델
+        completion = client.chat.completions.create(
+            model=MODEL_NAME,
             messages=[
                 {"role": "system", "content": "다음 텍스트에서 이벤트 정보를 추출해주세요. 주제, 일시, 위치, 설명을 JSON 형식으로 반환해주세요."},
                 {"role": "user", "content": text}
-            ],
-            max_tokens=150
+            ]
         )
-        return response.choices[0].message.content.strip()
+        return completion.choices[0].message.content.strip()
     except Exception as e:
         st.error(f"AI 분석 중 오류 발생: {str(e)}")
         return None
@@ -90,10 +91,11 @@ def create_google_calendar_link(event_info):
 def main():
     st.title("공문 이미지를 Google 캘린더 이벤트로 변환")
 
-    # API 키 확인
     if not api_key:
         st.error("OpenAI API 키가 설정되지 않았습니다. Streamlit Secrets에서 'OPENAI_API_KEY'를 설정해주세요.")
         return
+
+    st.info(f"현재 사용 중인 AI 모델: {MODEL_NAME}")
 
     uploaded_file = st.file_uploader("공문 이미지를 업로드하세요", type=["png", "jpg", "jpeg"])
 
