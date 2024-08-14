@@ -15,11 +15,18 @@ openai.api_key = api_key
 
 @st.cache_resource
 def load_ocr():
-    return easyocr.Reader(['ko', 'en'])
+    try:
+        with st.spinner('OCR 모델을 로딩 중입니다. 잠시만 기다려주세요...'):
+            return easyocr.Reader(['ko', 'en'], gpu=False)
+    except Exception as e:
+        st.error(f"OCR 모델 로딩 중 오류 발생: {str(e)}")
+        return None
 
 def extract_text_from_image(image):
+    reader = load_ocr()
+    if reader is None:
+        return None
     try:
-        reader = load_ocr()
         result = reader.readtext(np.array(image))
         text = ' '.join([res[1] for res in result])
         return text
@@ -87,6 +94,8 @@ def main():
             with st.spinner('이미지를 분석 중입니다...'):
                 extracted_text = extract_text_from_image(image)
                 if extracted_text:
+                    st.text("추출된 텍스트:")
+                    st.text(extracted_text)
                     analyzed_info = analyze_text_with_ai(extracted_text)
                     if analyzed_info:
                         st.subheader("분석 결과")
