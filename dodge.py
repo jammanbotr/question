@@ -12,7 +12,7 @@ st.markdown("""
     div.row-widget.stButton > button {
         width: 100%;
         height: 60px;
-        font-size: 14px;
+        font-size: 16px;
         font-weight: bold;
         margin: 2px 0px;
         padding: 0px;
@@ -22,7 +22,7 @@ st.markdown("""
         background-color: #45a049;
     }
     .student-count {
-        font-size: 12px;
+        font-size: 14px;
         font-weight: bold;
         text-align: center;
         margin-top: -15px;
@@ -31,11 +31,11 @@ st.markdown("""
     .custom-div {
         margin: 0px -1em;
     }
-    @media (max-width: 640px) {
-        div.row-widget.stButton > button {
-            font-size: 12px;
-            height: 50px;
-        }
+    /* 모든 화면 크기에 대해 3열 그리드 적용 */
+    .student-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -50,18 +50,16 @@ students = ["피카츄", "라이츄", "파이리", "꼬부기", "버터플", "�
 if 'counts' not in st.session_state:
     st.session_state.counts = {student: 0 for student in students}
 
-# 3열 레이아웃 생성
-st.markdown('<div class="custom-div">', unsafe_allow_html=True)
-for i in range(0, len(students), 3):
-    cols = st.columns(3)
-    for j in range(3):
-        if i+j < len(students):
-            student = students[i+j]
-            with cols[j]:
-                if st.button(f"{student}", key=f"btn_{student}"):
-                    st.session_state.counts[student] += 1
-                st.markdown(f"<p class='student-count'>{st.session_state.counts[student]}</p>", unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+# 3열 그리드 레이아웃 생성
+st.markdown('<div class="custom-div"><div class="student-grid">', unsafe_allow_html=True)
+for student in students:
+    col1, col2, col3 = st.columns([3, 1, 1])
+    with col1:
+        if st.button(f"{student}", key=f"btn_{student}"):
+            st.session_state.counts[student] += 1
+    with col2:
+        st.markdown(f"<p class='student-count'>{st.session_state.counts[student]}</p>", unsafe_allow_html=True)
+st.markdown('</div></div>', unsafe_allow_html=True)
 
 # 결과 표시
 st.write("## 현재 캐치 횟수")
