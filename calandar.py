@@ -7,6 +7,8 @@ from datetime import datetime
 import urllib.parse
 import numpy as np
 import time
+import json
+import re
 
 # Streamlit Secrets에서 API 키 가져오기
 api_key = st.secrets["OPENAI_API_KEY"]
@@ -44,16 +46,25 @@ def extract_text_from_image(image):
         st.error(f"이미지에서 텍스트 추출 중 오류 발생: {str(e)}")
         return None
 
+def clean_json_string(json_string):
+    # 코드 블록 표시 제거
+    json_string = re.sub(r'```json\s*|\s*```', '', json_string)
+    # 맨 앞뒤 공백 제거
+    json_string = json_string.strip()
+    # 첫 번째 '{' 부터 마지막 '}' 까지만 추출
+    json_string = json_string[json_string.find('{'):json_string.rfind('}')+1]
+    return json_string
+
 def analyze_text_with_ai(text):
     try:
         completion = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[
-                {"role": "system", "content": "다음 텍스트에서 이벤트 정보를 추출해주세요. 주제, 일시, 위치, 설명을 JSON 형식으로 반환해주세요."},
+                {"role": "system", "content": "다음 텍스트에서 이벤트 정보를 추출해주세요. 주제, 일시, 위치, 설명을 JSON 형식으로 반환해주세요. JSON만 반환하고 다른 텍스트는 포함하지 마세요."},
                 {"role": "user", "content": text}
             ]
         )
-        return completion.choices[0].message.content.strip()
+        return clean_json_string(completion.choices[0].message.content.strip())
     except Exception as e:
         st.error(f"AI 분석 중 오류 발생: {str(e)}")
         return None
@@ -62,7 +73,6 @@ def create_google_calendar_link(event_info):
     try:
         base_url = "https://www.google.com/calendar/render?action=TEMPLATE"
         
-        import json
         event_dict = json.loads(event_info)
         
         text = event_dict.get('주제', '')
