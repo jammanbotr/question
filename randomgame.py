@@ -28,7 +28,6 @@ def load_css():
         animation: pop-up 0.7s ease-out;
         text-align: center;
         margin: 30px 0;
-        border: 3px solid #FFD700;
     }
     
     .item-title {
@@ -50,7 +49,7 @@ def load_css():
         font-weight: bold;
         box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
-
+    
     .score {
         font-size: 42px;
         margin: 20px 0;
@@ -58,7 +57,7 @@ def load_css():
         text-shadow: 3px 3px 6px rgba(0,0,0,0.4);
         font-weight: bold;
     }
-    
+
     .score.positive {
         color: #FFD700;
         text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
@@ -89,9 +88,8 @@ def load_css():
         background: white;
         padding: 25px;
         border-radius: 15px;
-        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         margin: 25px 0;
-        border: 2px solid #4ECDC4;
     }
     
     .question-text {
@@ -129,7 +127,7 @@ def load_css():
         height: 20px;
         border-radius: 10px;
     }
-
+    
     .title {
         text-align: center;
         color: #2C3E50;
@@ -142,7 +140,7 @@ def load_css():
         border-radius: 15px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
-    
+
     @keyframes title-glow {
         from { text-shadow: 0 0 10px #4ECDC4; }
         to { text-shadow: 0 0 20px #FF6B6B; }
@@ -153,7 +151,6 @@ def load_css():
         padding: 20px;
         border-radius: 15px;
         margin-top: 30px;
-        border: 2px solid rgba(78, 205, 196, 0.3);
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
     
@@ -165,7 +162,6 @@ def load_css():
         color: white;
         font-size: 32px;
         animation: fade-in 1.5s ease-out;
-        border: 4px solid #FFD700;
         margin: 40px 0;
         box-shadow: 0 8px 16px rgba(0,0,0,0.2);
     }
@@ -189,7 +185,7 @@ def load_css():
         font-size: 18px;
         padding: 10px 15px;
         border-radius: 10px;
-        border: 2px solid #4ECDC4;
+        border: 1px solid #ddd;
         transition: all 0.3s ease;
     }
 
@@ -215,9 +211,7 @@ def load_css():
     </style>
     """, unsafe_allow_html=True)
 
-# QUESTIONS와 SCORE_ITEMS 정의는 이전과 동일...
-
-# 문제 세트 정의
+# 문제 세트와 점수 아이템 정의
 QUESTIONS = [
     ["소수의 곱셈 0.5 * 1.25는?", "0.625"],
     ["소수의 곱셈 1.3 * 2.1은?", "2.73"],
@@ -246,7 +240,6 @@ QUESTIONS = [
     ["진주성에서 일본군을 상대로 승리한 장군은?", "김시민"]
 ]
 
-# 점수 아이템 정의
 SCORE_ITEMS = [
     ("나희의 까불이 춤", 800),
     ("신영이의 화염 스카프", 700),
@@ -307,6 +300,22 @@ def get_random_question():
     st.session_state.used_questions.append(question_index)
     return question_index
 
+def show_item_and_next_question(item, score):
+    score_class = "positive" if score > 0 else "negative"
+    modal_html = f"""
+    <div class="item-modal">
+        <div class="item-title">🎉 특별한 아이템을 획득했습니다! 🎉</div>
+        <div class="item-name">{item}</div>
+        <div class="score {score_class}">{'+' if score > 0 else ''}{score} 점</div>
+    </div>
+    """
+    st.markdown(modal_html, unsafe_allow_html=True)
+    if score > 0:
+        st.balloons()
+    next_question = get_random_question()
+    st.session_state.current_question = next_question
+    st.rerun()
+
 def update_spreadsheet(name, score):
     try:
         credentials = {
@@ -325,7 +334,7 @@ def update_spreadsheet(name, score):
         gc = gspread.service_account_from_dict(credentials)
         spreadsheet_id = '1TYZ4ZXkwcL5_-ITxYyC081ruKS7vRJr2X7j1D4P-lnE'
         sheet = gc.open_by_key(spreadsheet_id).worksheet('기록')
-        
+
         # 새로운 기록 추가
         sheet.append_row(['', name, score])
         
@@ -344,18 +353,6 @@ def update_spreadsheet(name, score):
         
     except Exception as e:
         st.error(f"기록 저장 중 오류가 발생했습니다: {str(e)}")
-
-def show_item_modal(item, score):
-    score_class = "positive" if score > 0 else "negative"
-    modal_html = f"""
-    <div class="item-modal">
-        <div class="item-title">🎉 특별한 아이템을 획득했습니다! 🎉</div>
-        <div class="item-name">{item}</div>
-        <div class="score {score_class}">{'+' if score > 0 else ''}{score} 점</div>
-    </div>
-    """
-    st.markdown(modal_html, unsafe_allow_html=True)
-    time.sleep(4)  # 아이템 표시 시간 3초
 
 def main():
     load_css()
@@ -384,6 +381,7 @@ def main():
                 f'<div class="game-over">🎊 {st.session_state.name}님! 축하합니다!<br>최종 점수는 {st.session_state.total_score}점입니다! 🎊</div>',
                 unsafe_allow_html=True
             )
+
         else:
             current_question, answer = QUESTIONS[st.session_state.current_question]
             
@@ -395,10 +393,12 @@ def main():
                 user_answer = st.text_input("", key=f"answer_input_{st.session_state.questions_answered}").strip()
                 st.markdown('</div>', unsafe_allow_html=True)
                 
-                col1, col2 = st.columns(2)
+                col1, col2, col3 = st.columns(3)
                 with col1:
-                    submit = st.form_submit_button("다음", use_container_width=True)
+                    submit = st.form_submit_button("제출", use_container_width=True)
                 with col2:
+                    next_button = st.form_submit_button("다음 문제로", use_container_width=True)
+                with col3:
                     exit_button = st.form_submit_button("던전에서 퇴장하기", use_container_width=True)
                 
                 if submit:
@@ -415,12 +415,7 @@ def main():
                         item, score = get_random_score_item()
                         st.session_state.total_score += score
                         st.session_state.questions_answered += 1
-                        show_item_modal(item, score)
-                        if score > 0:
-                            st.balloons()
-                        next_question = get_random_question()
-                        st.session_state.current_question = next_question
-                        st.rerun()
+                        show_item_and_next_question(item, score)
                     else:
                         st.markdown(f"""
                         <div class="error-message">
@@ -428,11 +423,13 @@ def main():
                             <span class="correct-answer">정답은 '{answer}' 입니다.</span>
                         </div>
                         """, unsafe_allow_html=True)
-                        if st.button("다음 문제로"):
-                            next_question = get_random_question()
-                            st.session_state.current_question = next_question
-                            st.rerun()
-                        
+                
+                if next_button:
+                    item, score = get_random_score_item()
+                    st.session_state.total_score += score
+                    st.session_state.questions_answered += 1
+                    show_item_and_next_question(item, score)
+
                 if exit_button:
                     try:
                         st.session_state.game_finished = True
