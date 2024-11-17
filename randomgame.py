@@ -10,7 +10,192 @@ from oauth2client.service_account import ServiceAccountCredentials
 from google.oauth2 import service_account
 import time
 
-# 문제 세트 정의
+# CSS 스타일 정의
+def load_css():
+    st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
+    
+    * {
+        font-family: 'Jua', sans-serif;
+    }
+    
+    .item-modal {
+        background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+        padding: 30px;
+        border-radius: 20px;
+        box-shadow: 0 0 30px rgba(0,0,0,0.4);
+        animation: pop-up 0.7s ease-out;
+        text-align: center;
+        margin: 30px 0;
+        border: 3px solid #FFD700;
+    }
+    
+    .item-title {
+        font-size: 32px;
+        color: #FFFFFF;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        margin-bottom: 20px;
+    }
+    
+    .item-name {
+        font-size: 36px;
+        color: #2C3E50;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        animation: glow 1.5s ease-in-out infinite alternate;
+        padding: 15px;
+        background: rgba(255,255,255,0.95);
+        border-radius: 10px;
+        margin: 20px 0;
+        font-weight: bold;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .score {
+        font-size: 42px;
+        margin: 20px 0;
+        animation: bounce 1s ease infinite;
+        text-shadow: 3px 3px 6px rgba(0,0,0,0.4);
+        font-weight: bold;
+    }
+    
+    .score.positive {
+        color: #FFD700;
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
+    
+    .score.negative {
+        color: #FF4444;
+        text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+    }
+    
+    @keyframes pop-up {
+        0% { transform: scale(0); opacity: 0; }
+        70% { transform: scale(1.1); opacity: 0.7; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    
+    @keyframes glow {
+        from { box-shadow: 0 0 10px rgba(255,255,255,0.8); }
+        to { box-shadow: 0 0 20px rgba(255,255,255,1); }
+    }
+    
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-15px); }
+    }
+    
+    .question-card {
+        background: white;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        margin: 25px 0;
+        border: 2px solid #4ECDC4;
+    }
+    
+    .question-text {
+        font-size: 20px;
+        color: #2C3E50;
+        margin-bottom: 15px;
+        line-height: 1.5;
+        padding: 10px;
+    }
+
+    .stButton>button {
+        background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+        color: white;
+        border: none;
+        padding: 15px 30px;
+        border-radius: 30px;
+        font-weight: bold;
+        font-size: 18px;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton>button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+    
+    .stProgress > div > div {
+        background: linear-gradient(to right, #FF6B6B, #4ECDC4);
+        height: 20px;
+        border-radius: 10px;
+    }
+    
+    .title {
+        text-align: center;
+        color: #2C3E50;
+        font-size: 40px;
+        text-shadow: 3px 3px 6px rgba(0,0,0,0.2);
+        animation: title-glow 2s ease-in-out infinite alternate;
+        margin: 30px 0;
+        padding: 20px;
+        background: rgba(255,255,255,0.9);
+        border-radius: 15px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    @keyframes title-glow {
+        from { text-shadow: 0 0 10px #4ECDC4; }
+        to { text-shadow: 0 0 20px #FF6B6B; }
+    }
+    
+    .sidebar-content {
+        background: linear-gradient(135deg, #FF6B6B22, #4ECDC422);
+        padding: 20px;
+        border-radius: 15px;
+        margin-top: 30px;
+        border: 2px solid rgba(78, 205, 196, 0.3);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .game-over {
+        background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+        padding: 40px;
+        border-radius: 20px;
+        text-align: center;
+        color: white;
+        font-size: 32px;
+        animation: fade-in 1.5s ease-out;
+        border: 4px solid #FFD700;
+        margin: 40px 0;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    }
+    
+    @keyframes fade-in {
+        from { opacity: 0; transform: translateY(-30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .question-title {
+        font-size: 28px;
+        color: #2C3E50;
+        margin-bottom: 20px;
+        text-align: center;
+        padding: 10px;
+        background: rgba(78, 205, 196, 0.1);
+        border-radius: 10px;
+    }
+
+    .stTextInput>div>div>input {
+        font-size: 18px;
+        padding: 10px 15px;
+        border-radius: 10px;
+        border: 2px solid #4ECDC4;
+        transition: all 0.3s ease;
+    }
+
+    .stTextInput>div>div>input:focus {
+        border-color: #FF6B6B;
+        box-shadow: 0 0 10px rgba(255,107,107,0.2);
+    }
+
+    </style>
+    """, unsafe_allow_html=True)
+
+# 문제 세트와 점수 아이템 정의는 이전과 동일
 QUESTIONS = [
     ["소수의 곱셈 0.5 * 1.25는?", "0.625"],
     ["소수의 곱셈 1.3 * 2.1은?", "2.73"],
@@ -39,7 +224,6 @@ QUESTIONS = [
     ["진주성에서 일본군을 상대로 승리한 장군은?", "김시민"]
 ]
 
-# 점수 아이템 정의
 SCORE_ITEMS = [
     ("나희의 까불이 춤", 800),
     ("신영이의 화염 스카프", 700),
@@ -98,156 +282,6 @@ def get_random_question():
     st.session_state.used_questions.append(question_index)
     return question_index
 
-# CSS 스타일 정의
-def load_css():
-    st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
-    
-    * {
-        font-family: 'Jua', sans-serif;
-    }
-    
-    .item-modal {
-        background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
-        padding: 30px;
-        border-radius: 20px;
-        box-shadow: 0 0 30px rgba(0,0,0,0.4);
-        animation: pop-up 0.7s ease-out;
-        text-align: center;
-        margin: 30px 0;
-        border: 3px solid #FFD700;
-    }
-    
-    .item-title {
-        font-size: 32px;
-        color: #FFFFFF;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        margin-bottom: 20px;
-    }
-    
-    .item-name {
-        font-size: 36px;
-        color: #FFD700;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        animation: glow 1.5s ease-in-out infinite alternate;
-        padding: 15px;
-        background: rgba(0,0,0,0.2);
-        border-radius: 10px;
-        margin: 20px 0;
-    }
-    
-    .score {
-        font-size: 42px;
-        color: #fff;
-        margin: 20px 0;
-        animation: bounce 1s ease infinite;
-        text-shadow: 3px 3px 6px rgba(0,0,0,0.4);
-    }
-    
-    .score.positive {
-        color: #FFD700;
-    }
-    
-    .score.negative {
-        color: #FF4444;
-    }
-    
-    @keyframes pop-up {
-        0% { transform: scale(0); opacity: 0; }
-        70% { transform: scale(1.1); opacity: 0.7; }
-        100% { transform: scale(1); opacity: 1; }
-    }
-    
-    @keyframes glow {
-        from { text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #FFD700; }
-        to { text-shadow: 0 0 20px #fff, 0 0 30px #fff, 0 0 40px #FFD700; }
-    }
-    
-    @keyframes bounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-15px); }
-    }
-    
-    .question-card {
-        background: white;
-        padding: 25px;
-        border-radius: 15px;
-        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-        margin: 25px 0;
-        border: 2px solid #4ECDC4;
-    }
-    
-    .stButton>button {
-        background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
-        color: white;
-        border: none;
-        padding: 15px 30px;
-        border-radius: 30px;
-        font-weight: bold;
-        font-size: 18px;
-        transition: all 0.3s ease;
-    }
-    
-    .stButton>button:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-    }
-    
-    .stProgress > div > div {
-        background: linear-gradient(to right, #FF6B6B, #4ECDC4);
-        height: 20px;
-        border-radius: 10px;
-    }
-    
-    .title {
-        text-align: center;
-        color: #2C3E50;
-        font-size: 40px;
-        text-shadow: 3px 3px 6px rgba(0,0,0,0.2);
-        animation: title-glow 2s ease-in-out infinite alternate;
-        margin: 30px 0;
-    }
-    
-    @keyframes title-glow {
-        from { text-shadow: 0 0 10px #4ECDC4; }
-        to { text-shadow: 0 0 20px #FF6B6B; }
-    }
-    
-    .sidebar-content {
-        background: linear-gradient(135deg, #FF6B6B22, #4ECDC422);
-        padding: 20px;
-        border-radius: 15px;
-        margin-top: 30px;
-        border: 2px solid rgba(78, 205, 196, 0.3);
-    }
-    
-    .game-over {
-        background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
-        padding: 40px;
-        border-radius: 20px;
-        text-align: center;
-        color: white;
-        font-size: 32px;
-        animation: fade-in 1.5s ease-out;
-        border: 4px solid #FFD700;
-        margin: 40px 0;
-    }
-    
-    @keyframes fade-in {
-        from { opacity: 0; transform: translateY(-30px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .question-title {
-        font-size: 28px;
-        color: #2C3E50;
-        margin-bottom: 20px;
-        text-align: center;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
 def update_spreadsheet(name, score):
     try:
         credentials = service_account.Credentials.from_service_account_info(
@@ -288,8 +322,7 @@ def show_item_modal(item, score):
     </div>
     """
     st.markdown(modal_html, unsafe_allow_html=True)
-    # 아이템 표시 시간을 3초로 증가
-    time.sleep(3)
+    time.sleep(3)  # 아이템 표시 시간 3초
 
 def main():
     load_css()
@@ -311,7 +344,8 @@ def main():
     elif not st.session_state.game_finished:
         if st.session_state.current_question is None:
             st.session_state.game_finished = True
-            update_spreadsheet(st.session_state.name, st.session_state.total_score)
+            if st.session_state.name and st.session_state.total_score is not None:
+                update_spreadsheet(st.session_state.name, st.session_state.total_score)
             st.balloons()
             st.markdown(
                 f'<div class="game-over">🎊 {st.session_state.name}님! 축하합니다!<br>최종 점수는 {st.session_state.total_score}점입니다! 🎊</div>',
@@ -324,7 +358,7 @@ def main():
             
             with st.form("question_form"):
                 st.markdown('<div class="question-card">', unsafe_allow_html=True)
-                st.write(current_question)
+                st.markdown(f"<div class='question-text'>{current_question}</div>", unsafe_allow_html=True)
                 user_answer = st.text_input("답을 입력하세요:", key="answer_input").strip()
                 st.markdown('</div>', unsafe_allow_html=True)
                 
@@ -362,13 +396,17 @@ def main():
                         st.error("틀렸습니다! 다시 도전해보세요! 😢")
                         
                 if exit_button:
-                    st.session_state.game_finished = True
-                    update_spreadsheet(st.session_state.name, st.session_state.total_score)
-                    st.balloons()
-                    st.markdown(
-                        f'<div class="game-over">🎊 {st.session_state.name}님!<br>최종 점수는 {st.session_state.total_score}점입니다! 🎊</div>',
-                        unsafe_allow_html=True
-                    )
+                    try:
+                        st.session_state.game_finished = True
+                        if st.session_state.name and st.session_state.total_score is not None:
+                            update_spreadsheet(st.session_state.name, st.session_state.total_score)
+                        st.balloons()
+                        st.markdown(
+                            f'<div class="game-over">🎊 {st.session_state.name}님!<br>최종 점수는 {st.session_state.total_score}점입니다! 🎊</div>',
+                            unsafe_allow_html=True
+                        )
+                    except Exception as e:
+                        st.error("게임 종료 중 오류가 발생했습니다.")
 
             if not st.session_state.game_finished:
                 with st.sidebar:
@@ -385,4 +423,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
