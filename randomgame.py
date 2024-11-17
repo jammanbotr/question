@@ -1,4 +1,8 @@
 import streamlit as st
+
+# 반드시 다른 st 명령어보다 먼저 실행
+st.set_page_config(page_title="JAMMANBO 문제 던전", page_icon="🎮", layout="wide")
+
 import pandas as pd
 import random
 import gspread
@@ -245,7 +249,6 @@ def update_spreadsheet(name, score):
 
 def main():
     load_css()  # CSS 로드
-    st.set_page_config(page_title="JAMMANBO 문제 던전", page_icon="🎮", layout="wide")
     init_session_state()
 
     st.markdown('<h1 class="title">🎮 JAMMANBO 문제 던전에 입장한 잼민이들 환영합니다 🎮</h1>', unsafe_allow_html=True)
