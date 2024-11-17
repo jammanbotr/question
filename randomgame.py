@@ -152,32 +152,41 @@ def main():
                 exit_button = st.form_submit_button("던전에서 퇴장하기", use_container_width=True)
             
             if submit:
-                try:
-                    if '.' in answer:  # 정답이 소수인 경우
-                        correct = abs(float(user_answer) - float(answer)) < 0.0001
-                    else:  # 정답이 문자열인 경우
-                        correct = user_answer == answer
-                except ValueError:
-                    correct = user_answer == answer
+                # 디버깅을 위한 출력
+                st.write(f"사용자 입력: '{user_answer}'")
+                st.write(f"정답: '{answer}'")
+                
+                # 답안 비교 로직 수정
+                if user_answer and answer:  # 둘 다 비어있지 않은 경우에만 비교
+                    try:
+                        if any(c.isdigit() for c in answer):  # 정답에 숫자가 포함된 경우
+                            correct = abs(float(user_answer) - float(answer)) < 0.0001
+                        else:  # 정답이 문자열인 경우
+                            correct = user_answer.strip() == answer.strip()
+                    except ValueError:
+                        correct = user_answer.strip() == answer.strip()
 
-                if correct:
-                    item, score = get_random_score_item()
-                    st.session_state.total_score += score
-                    if score > 0:
-                        st.success(f"정답입니다! 🎉 {item}을(를) 획득했습니다! (+{score}점)")
+                    if correct:
+                        item, score = get_random_score_item()
+                        st.session_state.total_score += score
+                        st.session_state.questions_answered += 1  # 정답일 때만 카운트 증가
+                        
+                        if score > 0:
+                            st.success(f"정답입니다! 🎉 {item}을(를) 획득했습니다! (+{score}점)")
+                        else:
+                            st.warning(f"정답입니다! 😱 하지만 {item}을(를) 획득했습니다... ({score}점)")
+                        
+                        # 문제를 모두 풀었는지 확인
+                        if st.session_state.questions_answered >= 25:
+                            st.session_state.game_finished = True
+                            update_spreadsheet(st.session_state.name, st.session_state.total_score)
+                            st.balloons()
+                            st.success(f"🎊 {st.session_state.name}님! 축하합니다! 최종 점수는 {st.session_state.total_score}점입니다! 🎊")
+                        else:
+                            st.rerun()  # 다음 문제로 넘어가기 위해 페이지 새로고침
                     else:
-                        st.warning(f"정답입니다! 😱 하지만 {item}을(를) 획득했습니다... ({score}점)")
-                    
-                    st.session_state.questions_answered += 1
-                    
-                    if st.session_state.questions_answered >= 25:
-                        st.session_state.game_finished = True
-                        update_spreadsheet(st.session_state.name, st.session_state.total_score)
-                        st.balloons()
-                        st.success(f"🎊 {st.session_state.name}님! 축하합니다! 최종 점수는 {st.session_state.total_score}점입니다! 🎊")
-                else:
-                    st.error("틀렸습니다! 다시 도전해보세요! 😢")
-                    
+                        st.error("틀렸습니다! 다시 도전해보세요! 😢")
+                        
             if exit_button:
                 st.session_state.game_finished = True
                 update_spreadsheet(st.session_state.name, st.session_state.total_score)
