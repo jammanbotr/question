@@ -364,9 +364,22 @@ def show_item_and_next_question(item, score):
 
 def update_and_get_scoreboard(name, score):
     try:
-        # Google Sheets API 인증
+        # 인증 정보 직접 구성
+        credentials_dict = {
+            "type": st.secrets["gcp_service_account"]["type"],
+            "project_id": st.secrets["gcp_service_account"]["project_id"],
+            "private_key_id": st.secrets["gcp_service_account"]["private_key_id"],
+            "private_key": st.secrets["gcp_service_account"]["private_key"],
+            "client_email": st.secrets["gcp_service_account"]["client_email"],
+            "client_id": st.secrets["gcp_service_account"]["client_id"],
+            "auth_uri": st.secrets["gcp_service_account"]["auth_uri"],
+            "token_uri": st.secrets["gcp_service_account"]["token_uri"],
+            "auth_provider_x509_cert_url": st.secrets["gcp_service_account"]["auth_provider_x509_cert_url"],
+            "client_x509_cert_url": st.secrets["gcp_service_account"]["client_x509_cert_url"]
+        }
+        
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-        credentials = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
+        credentials = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
         gc = gspread.authorize(credentials)
         
         # 스프레드시트 열기
@@ -386,10 +399,10 @@ def update_and_get_scoreboard(name, score):
         return df.head(10)
         
     except Exception as e:
+        print(f"Error details: {str(e)}")  # 상세 에러 확인용
         st.error(f"점수 기록에 실패했습니다: {str(e)}")
-        print(f"Error details: {str(e)}")  # 디버깅용
         return pd.DataFrame(columns=['이름', '점수', '시간'])
-
+        
 def show_final_scoreboard(current_name, current_score):
     df = update_and_get_scoreboard(current_name, current_score)
     if len(df) > 0:
