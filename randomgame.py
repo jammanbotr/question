@@ -5,9 +5,17 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import time
 from datetime import datetime
+import json
 
-st.set_page_config(page_title="JAMMANBO 문제 던전", page_icon="🎮", layout="wide")
+# 페이지 설정
+st.set_page_config(
+    page_title="JAMMANBO 문제 던전", 
+    page_icon="🎮",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
+# CSS 로드
 def load_css():
     st.markdown("""
     <style>
@@ -98,6 +106,12 @@ def load_css():
         border-radius: 15px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         margin: 25px 0;
+        transition: all 0.3s ease;
+    }
+    
+    .question-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
     }
     
     .question-text {
@@ -184,11 +198,28 @@ def load_css():
         justify-content: space-between;
         align-items: center;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+
+    .score-row:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
     }
 
     .score-row.highlight {
         background: linear-gradient(45deg, #FF6B6B22, #4ECDC422);
         border: 2px solid #4ECDC4;
+    }
+
+    .game-over {
+        text-align: center;
+        font-size: 32px;
+        color: #2C3E50;
+        margin: 30px 0;
+        padding: 20px;
+        background: linear-gradient(45deg, #FF6B6B22, #4ECDC422);
+        border-radius: 15px;
+        animation: fadeIn 1s ease-out;
     }
 
     @keyframes fadeIn {
@@ -216,6 +247,10 @@ def load_css():
         to { box-shadow: 0 0 20px rgba(255,255,255,1); }
     }
 
+    @keyframes title-glow {
+        from { text-shadow: 0 0 5px rgba(44, 62, 80, 0.1); }
+        to { text-shadow: 0 0 15px rgba(44, 62, 80, 0.3); }
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -329,34 +364,30 @@ def show_item_and_next_question(item, score):
 
 def update_and_get_scoreboard(name, score):
     try:
-        credentials = {
-            "type": "service_account",
-            "project_id": st.secrets["gcp_service_account"]["project_id"],
-            "private_key_id": st.secrets["gcp_service_account"]["private_key_id"],
-            "private_key": st.secrets["gcp_service_account"]["private_key"].replace('\\n', '\n'),
-            "client_email": st.secrets["gcp_service_account"]["client_email"],
-            "client_id": st.secrets["gcp_service_account"]["client_id"],
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "client_x509_cert_url": st.secrets["gcp_service_account"]["client_x509_cert_url"]
-        }
+        # Google Sheets API 인증
+        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+        credentials = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
+        gc = gspread.authorize(credentials)
         
-        gc = gspread.service_account_from_dict(credentials)
-        sheet = gc.open_by_key('1TYZ4ZXkwcL5_-ITxYyC081ruKS7vRJr2X7j1D4P-lnE').worksheet('기록')
+        # 스프레드시트 열기
+        sheet = gc.open_by_key(st.secrets["spreadsheet_id"]).worksheet('기록')
         
+        # 새로운 점수 추가
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         sheet.append_row([name, score, current_time])
         
+        # 전체 데이터 가져오기
         data = sheet.get_all_values()
         df = pd.DataFrame(data[1:], columns=['이름', '점수', '시간'])
         df['점수'] = pd.to_numeric(df['점수'])
         
+        # 점수순으로 정렬
         df = df.sort_values('점수', ascending=False)
         return df.head(10)
         
     except Exception as e:
-        print(f"Error details: {str(e)}")
+        st.error(f"점수 기록에 실패했습니다: {str(e)}")
+        print(f"Error details: {str(e)}")  # 디버깅용
         return pd.DataFrame(columns=['이름', '점수', '시간'])
 
 def show_final_scoreboard(current_name, current_score):
@@ -365,7 +396,7 @@ def show_final_scoreboard(current_name, current_score):
         st.markdown("<h2>🏆 명예의 전당 🏆</h2>", unsafe_allow_html=True)
         
         for i, row in df.iterrows():
-            is_current = row['이름'] == current_name and row['점수'] == current_score
+            is_current = row['이름'] == current_name and int(row['점수']) == current_score
             st.markdown(f"""
             <div class="score-row {'highlight' if is_current else ''}">
                 <span class="rank">#{i+1}</span>
