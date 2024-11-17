@@ -362,23 +362,19 @@ def show_item_and_next_question(item, score):
     next_question = get_random_question()
     st.session_state.current_question = next_question
 
+
 def update_and_get_scoreboard(name, score):
     try:
         # 인증 정보 직접 구성
-        credentials_dict = {
-            "type": st.secrets["gcp_service_account"]["type"],
-            "project_id": st.secrets["gcp_service_account"]["project_id"],
-            "private_key_id": st.secrets["gcp_service_account"]["private_key_id"],
-            "private_key": st.secrets["gcp_service_account"]["private_key"],
-            "client_email": st.secrets["gcp_service_account"]["client_email"],
-            "client_id": st.secrets["gcp_service_account"]["client_id"],
-            "auth_uri": st.secrets["gcp_service_account"]["auth_uri"],
-            "token_uri": st.secrets["gcp_service_account"]["token_uri"],
-            "auth_provider_x509_cert_url": st.secrets["gcp_service_account"]["auth_provider_x509_cert_url"],
-            "client_x509_cert_url": st.secrets["gcp_service_account"]["client_x509_cert_url"]
-        }
+        credentials_dict = dict(st.secrets["gcp_service_account"])
         
-        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+        # universe_domain 제거 (필요없는 키)
+        if "universe_domain" in credentials_dict:
+            del credentials_dict["universe_domain"]
+        
+        scope = ['https://spreadsheets.google.com/feeds',
+                 'https://www.googleapis.com/auth/drive']
+        
         credentials = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
         gc = gspread.authorize(credentials)
         
@@ -399,10 +395,10 @@ def update_and_get_scoreboard(name, score):
         return df.head(10)
         
     except Exception as e:
-        print(f"Error details: {str(e)}")  # 상세 에러 확인용
+        print(f"Detailed error: {str(e)}")  # 상세 에러 출력
         st.error(f"점수 기록에 실패했습니다: {str(e)}")
         return pd.DataFrame(columns=['이름', '점수', '시간'])
-        
+
 def show_final_scoreboard(current_name, current_score):
     df = update_and_get_scoreboard(current_name, current_score)
     if len(df) > 0:
