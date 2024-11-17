@@ -1,16 +1,12 @@
 import streamlit as st
-
-# 반드시 다른 st 명령어보다 먼저 실행
-st.set_page_config(page_title="JAMMANBO 문제 던전", page_icon="🎮", layout="wide")
-
 import pandas as pd
 import random
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from google.oauth2 import service_account
 import time
 
-# CSS 스타일 정의
+st.set_page_config(page_title="JAMMANBO 문제 던전", page_icon="🎮", layout="wide")
+
 def load_css():
     st.markdown("""
     <style>
@@ -57,7 +53,7 @@ def load_css():
         text-shadow: 3px 3px 6px rgba(0,0,0,0.4);
         font-weight: bold;
     }
-
+    
     .score.positive {
         color: #FFD700;
         text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
@@ -102,10 +98,6 @@ def load_css():
         border-radius: 10px;
     }
 
-    .answer-input {
-        margin-top: 15px;
-    }
-    
     .stButton>button {
         background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
         color: white;
@@ -122,12 +114,6 @@ def load_css():
         box-shadow: 0 8px 20px rgba(0,0,0,0.2);
     }
     
-    .stProgress > div > div {
-        background: linear-gradient(to right, #FF6B6B, #4ECDC4);
-        height: 20px;
-        border-radius: 10px;
-    }
-    
     .title {
         text-align: center;
         color: #2C3E50;
@@ -139,46 +125,6 @@ def load_css():
         background: rgba(255,255,255,0.9);
         border-radius: 15px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-
-    @keyframes title-glow {
-        from { text-shadow: 0 0 10px #4ECDC4; }
-        to { text-shadow: 0 0 20px #FF6B6B; }
-    }
-    
-    .sidebar-content {
-        background: linear-gradient(135deg, #FF6B6B22, #4ECDC422);
-        padding: 20px;
-        border-radius: 15px;
-        margin-top: 30px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    
-    .game-over {
-        background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
-        padding: 40px;
-        border-radius: 20px;
-        text-align: center;
-        color: white;
-        font-size: 32px;
-        animation: fade-in 1.5s ease-out;
-        margin: 40px 0;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-    }
-    
-    @keyframes fade-in {
-        from { opacity: 0; transform: translateY(-30px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .question-title {
-        font-size: 28px;
-        color: #2C3E50;
-        margin-bottom: 20px;
-        text-align: center;
-        padding: 10px;
-        background: rgba(78, 205, 196, 0.1);
-        border-radius: 10px;
     }
 
     .stTextInput>div>div>input {
@@ -207,11 +153,10 @@ def load_css():
         font-weight: bold;
         margin-top: 10px;
     }
-
     </style>
     """, unsafe_allow_html=True)
 
-# 문제 세트와 점수 아이템 정의
+# 문제와 아이템 정의
 QUESTIONS = [
     ["소수의 곱셈 0.5 * 1.25는?", "0.625"],
     ["소수의 곱셈 1.3 * 2.1은?", "2.73"],
@@ -279,80 +224,45 @@ def init_session_state():
         st.session_state.used_questions = []
     if 'current_question' not in st.session_state:
         st.session_state.current_question = get_random_question()
-    if 'show_answer' not in st.session_state:
-        st.session_state.show_answer = False
 
 def get_random_score_item():
     item, score = random.choice(SCORE_ITEMS)
     return item, score
 
 def get_random_question():
-    if 'used_questions' not in st.session_state:
-        st.session_state.used_questions = []
-    
     available_questions = [i for i in range(len(QUESTIONS)) 
                          if i not in st.session_state.used_questions]
-    
-    if not available_questions:  # 모든 문제를 다 풀었을 경우
+    if not available_questions:
         return None
-    
     question_index = random.choice(available_questions)
     st.session_state.used_questions.append(question_index)
     return question_index
 
 def show_item_and_next_question(item, score):
-    score_class = "positive" if score > 0 else "negative"
-    modal_html = f"""
+    st.session_state.total_score += score
+    st.session_state.questions_answered += 1
+    
+    st.markdown(f"""
     <div class="item-modal">
         <div class="item-title">🎉 특별한 아이템을 획득했습니다! 🎉</div>
         <div class="item-name">{item}</div>
-        <div class="score {score_class}">{'+' if score > 0 else ''}{score} 점</div>
+        <div class="score {'positive' if score > 0 else 'negative'}">{'+' if score > 0 else ''}{score} 점</div>
     </div>
-    """
-    st.markdown(modal_html, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+    
     if score > 0:
         st.balloons()
+    
     next_question = get_random_question()
     st.session_state.current_question = next_question
-    st.rerun()
 
 def update_spreadsheet(name, score):
     try:
-        credentials = {
-            "type": "service_account",
-            "project_id": st.secrets["gcp_service_account"]["project_id"],
-            "private_key_id": st.secrets["gcp_service_account"]["private_key_id"],
-            "private_key": st.secrets["gcp_service_account"]["private_key"],
-            "client_email": st.secrets["gcp_service_account"]["client_email"],
-            "client_id": st.secrets["gcp_service_account"]["client_id"],
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "client_x509_cert_url": st.secrets["gcp_service_account"]["client_x509_cert_url"]
-        }
-        
-        gc = gspread.service_account_from_dict(credentials)
-        spreadsheet_id = '1TYZ4ZXkwcL5_-ITxYyC081ruKS7vRJr2X7j1D4P-lnE'
-        sheet = gc.open_by_key(spreadsheet_id).worksheet('기록')
-
-        # 새로운 기록 추가
-        sheet.append_row(['', name, score])
-        
-        # 점수순으로 정렬
-        records = sheet.get_all_values()[1:]  # 헤더 제외
-        records.sort(key=lambda x: float(x[2]), reverse=True)
-        
-        # 순위 업데이트
-        for i, record in enumerate(records, 1):
-            record[0] = i
-        
-        # 시트 업데이트
-        sheet.clear()
-        sheet.append_row(['순위', '이름', '기록'])  # 헤더 다시 추가
-        sheet.append_rows(records)
-        
+        gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
+        sheet = gc.open_by_key('1TYZ4ZXkwcL5_-ITxYyC081ruKS7vRJr2X7j1D4P-lnE').worksheet('기록')
+        sheet.append_row([len(sheet.get_all_values()), name, score])
     except Exception as e:
-        st.error(f"기록 저장 중 오류가 발생했습니다: {str(e)}")
+        st.error(f"점수 기록에 실패했습니다. 나중에 다시 시도해주세요.")
 
 def main():
     load_css()
@@ -381,7 +291,6 @@ def main():
                 f'<div class="game-over">🎊 {st.session_state.name}님! 축하합니다!<br>최종 점수는 {st.session_state.total_score}점입니다! 🎊</div>',
                 unsafe_allow_html=True
             )
-
         else:
             current_question, answer = QUESTIONS[st.session_state.current_question]
             
@@ -413,9 +322,8 @@ def main():
 
                     if correct:
                         item, score = get_random_score_item()
-                        st.session_state.total_score += score
-                        st.session_state.questions_answered += 1
                         show_item_and_next_question(item, score)
+                        st.rerun()
                     else:
                         st.markdown(f"""
                         <div class="error-message">
@@ -426,10 +334,9 @@ def main():
                 
                 if next_button:
                     item, score = get_random_score_item()
-                    st.session_state.total_score += score
-                    st.session_state.questions_answered += 1
                     show_item_and_next_question(item, score)
-
+                    st.rerun()
+                
                 if exit_button:
                     try:
                         st.session_state.game_finished = True
