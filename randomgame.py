@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import random
 import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 import time
 from datetime import datetime
 
@@ -306,7 +307,6 @@ def show_item_and_next_question(item, score):
     st.session_state.total_score += score
     st.session_state.questions_answered += 1
     
-    # 더 화려한 모달 디자인
     st.markdown(f"""
     <div class="item-modal-backdrop">
         <div class="item-modal-content">
@@ -323,35 +323,45 @@ def show_item_and_next_question(item, score):
     if score > 0:
         st.balloons()
     
-    time.sleep(2)  # 모달을 2초간 표시
+    time.sleep(2)
     next_question = get_random_question()
     st.session_state.current_question = next_question
 
 def update_and_get_scoreboard(name, score):
     try:
-        gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
+        credentials = {
+            "type": "service_account",
+            "project_id": st.secrets["gcp_service_account"]["project_id"],
+            "private_key_id": st.secrets["gcp_service_account"]["private_key_id"],
+            "private_key": st.secrets["gcp_service_account"]["private_key"].replace('\\n', '\n'),
+            "client_email": st.secrets["gcp_service_account"]["client_email"],
+            "client_id": st.secrets["gcp_service_account"]["client_id"],
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": st.secrets["gcp_service_account"]["client_x509_cert_url"]
+        }
+        
+        gc = gspread.service_account_from_dict(credentials)
         sheet = gc.open_by_key('1TYZ4ZXkwcL5_-ITxYyC081ruKS7vRJr2X7j1D4P-lnE').worksheet('기록')
         
-        # 새로운 점수 추가
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         sheet.append_row([name, score, current_time])
         
-        # 전체 데이터 가져오기
         data = sheet.get_all_values()
         df = pd.DataFrame(data[1:], columns=['이름', '점수', '시간'])
         df['점수'] = pd.to_numeric(df['점수'])
         
-        # 점수순으로 정렬
         df = df.sort_values('점수', ascending=False)
-        return df.head(10)  # 상위 10개 반환
+        return df.head(10)
         
     except Exception as e:
-        st.error(f"점수 기록에 실패했습니다: {str(e)}")
-        return None
+        print(f"Error details: {str(e)}")
+        return pd.DataFrame(columns=['이름', '점수', '시간'])
 
 def show_final_scoreboard(current_name, current_score):
     df = update_and_get_scoreboard(current_name, current_score)
-    if df is not None:
+    if len(df) > 0:
         st.markdown("<h2>🏆 명예의 전당 🏆</h2>", unsafe_allow_html=True)
         
         for i, row in df.iterrows():
