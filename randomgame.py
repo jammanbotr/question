@@ -50,7 +50,7 @@ def load_css():
         font-weight: bold;
         box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
-    
+
     .score {
         font-size: 42px;
         margin: 20px 0;
@@ -97,11 +97,17 @@ def load_css():
     .question-text {
         font-size: 20px;
         color: #2C3E50;
-        margin-bottom: 15px;
+        margin-bottom: 20px;
         line-height: 1.5;
         padding: 10px;
+        background: rgba(78, 205, 196, 0.1);
+        border-radius: 10px;
     }
 
+    .answer-input {
+        margin-top: 15px;
+    }
+    
     .stButton>button {
         background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
         color: white;
@@ -123,7 +129,7 @@ def load_css():
         height: 20px;
         border-radius: 10px;
     }
-    
+
     .title {
         text-align: center;
         color: #2C3E50;
@@ -192,10 +198,26 @@ def load_css():
         box-shadow: 0 0 10px rgba(255,107,107,0.2);
     }
 
+    .error-message {
+        background: rgba(255, 68, 68, 0.1);
+        padding: 15px;
+        border-radius: 10px;
+        border-left: 4px solid #FF4444;
+        margin: 15px 0;
+    }
+
+    .correct-answer {
+        color: #2C3E50;
+        font-weight: bold;
+        margin-top: 10px;
+    }
+
     </style>
     """, unsafe_allow_html=True)
 
-# 문제 세트와 점수 아이템 정의는 이전과 동일
+# QUESTIONS와 SCORE_ITEMS 정의는 이전과 동일...
+
+# 문제 세트 정의
 QUESTIONS = [
     ["소수의 곱셈 0.5 * 1.25는?", "0.625"],
     ["소수의 곱셈 1.3 * 2.1은?", "2.73"],
@@ -224,6 +246,7 @@ QUESTIONS = [
     ["진주성에서 일본군을 상대로 승리한 장군은?", "김시민"]
 ]
 
+# 점수 아이템 정의
 SCORE_ITEMS = [
     ("나희의 까불이 춤", 800),
     ("신영이의 화염 스카프", 700),
@@ -263,6 +286,8 @@ def init_session_state():
         st.session_state.used_questions = []
     if 'current_question' not in st.session_state:
         st.session_state.current_question = get_random_question()
+    if 'show_answer' not in st.session_state:
+        st.session_state.show_answer = False
 
 def get_random_score_item():
     item, score = random.choice(SCORE_ITEMS)
@@ -284,14 +309,22 @@ def get_random_question():
 
 def update_spreadsheet(name, score):
     try:
-        credentials = service_account.Credentials.from_service_account_info(
-            st.secrets["gcp_service_account"],
-            scopes=['https://www.googleapis.com/auth/spreadsheets']
-        )
+        credentials = {
+            "type": "service_account",
+            "project_id": st.secrets["gcp_service_account"]["project_id"],
+            "private_key_id": st.secrets["gcp_service_account"]["private_key_id"],
+            "private_key": st.secrets["gcp_service_account"]["private_key"],
+            "client_email": st.secrets["gcp_service_account"]["client_email"],
+            "client_id": st.secrets["gcp_service_account"]["client_id"],
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": st.secrets["gcp_service_account"]["client_x509_cert_url"]
+        }
         
+        gc = gspread.service_account_from_dict(credentials)
         spreadsheet_id = '1TYZ4ZXkwcL5_-ITxYyC081ruKS7vRJr2X7j1D4P-lnE'
-        client = gspread.authorize(credentials)
-        sheet = client.open_by_key(spreadsheet_id).worksheet('기록')
+        sheet = gc.open_by_key(spreadsheet_id).worksheet('기록')
         
         # 새로운 기록 추가
         sheet.append_row(['', name, score])
@@ -322,7 +355,7 @@ def show_item_modal(item, score):
     </div>
     """
     st.markdown(modal_html, unsafe_allow_html=True)
-    time.sleep(3)  # 아이템 표시 시간 3초
+    time.sleep(4)  # 아이템 표시 시간 3초
 
 def main():
     load_css()
@@ -356,10 +389,10 @@ def main():
             
             st.markdown(f'<h3 class="question-title">🎯 문제 {st.session_state.questions_answered + 1}/25</h3>', unsafe_allow_html=True)
             
-            with st.form("question_form"):
+            with st.form(f"question_form_{st.session_state.questions_answered}"):
                 st.markdown('<div class="question-card">', unsafe_allow_html=True)
                 st.markdown(f"<div class='question-text'>{current_question}</div>", unsafe_allow_html=True)
-                user_answer = st.text_input("답을 입력하세요:", key="answer_input").strip()
+                user_answer = st.text_input("", key=f"answer_input_{st.session_state.questions_answered}").strip()
                 st.markdown('</div>', unsafe_allow_html=True)
                 
                 col1, col2 = st.columns(2)
@@ -382,18 +415,23 @@ def main():
                         item, score = get_random_score_item()
                         st.session_state.total_score += score
                         st.session_state.questions_answered += 1
-                        
-                        # 화려한 효과와 함께 아이템 획득 표시
                         show_item_modal(item, score)
                         if score > 0:
                             st.balloons()
-                        
-                        # 다음 문제 설정
                         next_question = get_random_question()
                         st.session_state.current_question = next_question
                         st.rerun()
                     else:
-                        st.error("틀렸습니다! 다시 도전해보세요! 😢")
+                        st.markdown(f"""
+                        <div class="error-message">
+                            틀렸습니다! 😢<br>
+                            <span class="correct-answer">정답은 '{answer}' 입니다.</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if st.button("다음 문제로"):
+                            next_question = get_random_question()
+                            st.session_state.current_question = next_question
+                            st.rerun()
                         
                 if exit_button:
                     try:
