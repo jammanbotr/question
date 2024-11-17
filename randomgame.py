@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import random
@@ -74,29 +73,59 @@ def init_session_state():
         st.session_state.questions_answered = 0
     if 'game_finished' not in st.session_state:
         st.session_state.game_finished = False
+    if 'used_questions' not in st.session_state:
+        st.session_state.used_questions = set()
 
 def get_random_score_item():
     item, score = random.choice(SCORE_ITEMS)
     return item, score
 
+def get_random_question():
+    available_questions = [i for i in range(len(QUESTIONS)) if i not in st.session_state.used_questions]
+    if not available_questions:
+        st.session_state.used_questions.clear()
+        available_questions = list(range(len(QUESTIONS)))
+    
+    question_index = random.choice(available_questions)
+    st.session_state.used_questions.add(question_index)
+    return question_index
+
 def update_spreadsheet(name, score):
-    credentials = service_account.Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"],
-        scopes=['https://www.googleapis.com/auth/spreadsheets']
-    )
-    
-    spreadsheet_id = '1TYZ4ZXkwcL5_-ITxYyC081ruKS7vRJr2X7j1D4P-lnE'
-    client = gspread.authorize(credentials)
-    sheet = client.open_by_key(spreadsheet_id).worksheet('기록')
-    
-    # 새로운 기록 추가
-    sheet.append_row(['', name, score])
+    try:
+        credentials = service_account.Credentials.from_service_account_info(
+            st.secrets["gcp_service_account"],
+            scopes=['https://www.googleapis.com/auth/spreadsheets']
+        )
+        
+        spreadsheet_id = '1TYZ4ZXkwcL5_-ITxYyC081ruKS7vRJr2X7j1D4P-lnE'
+        client = gspread.authorize(credentials)
+        sheet = client.open_by_key(spreadsheet_id).worksheet('기록')
+        
+        # 새로운 기록 추가
+        sheet.append_row(['', name, score])
+        
+        # 점수순으로 정렬
+        records = sheet.get_all_values()[1:]  # 헤더 제외
+        records.sort(key=lambda x: float(x[2]), reverse=True)
+        
+        # 순위 업데이트
+        for i, record in enumerate(records, 1):
+            record[0] = i
+        
+        # 시트 업데이트
+        sheet.clear()
+        sheet.append_row(['순위', '이름', '기록'])  # 헤더 다시 추가
+        sheet.append_rows(records)
+        
+    except Exception as e:
+        st.error(f"기록 저장 중 오류가 발생했습니다: {str(e)}")
 
 def main():
-    st.set_page_config(page_title="JAMMANBO 문제 던전", page_icon="🎮")
+    st.set_page_config(page_title="JAMMANBO 문제 던전", page_icon="🎮", layout="wide")
     init_session_state()
 
     st.title("🎮 JAMMANBO 문제 던전에 입장한 잼민이들 환영합니다 🎮")
+    st.markdown("---")
 
     if not st.session_state.name:
         with st.form("name_form"):
@@ -104,21 +133,23 @@ def main():
             submit = st.form_submit_button("다음")
             if submit and st.session_state.name_input:
                 st.session_state.name = st.session_state.name_input
-                st.experimental_rerun()
+                st.rerun()
 
     elif not st.session_state.game_finished:
+        st.session_state.current_question = get_random_question()
         current_question, answer = QUESTIONS[st.session_state.current_question]
         
+        st.markdown(f"### 🎯 문제 {st.session_state.questions_answered + 1}/25")
+        
         with st.form("question_form"):
-            st.write(f"문제 {st.session_state.questions_answered + 1}/25")
             st.write(current_question)
-            user_answer = st.text_input("답을 입력하세요:")
+            user_answer = st.text_input("답을 입력하세요:", key="answer_input")
             
             col1, col2 = st.columns(2)
             with col1:
-                submit = st.form_submit_button("다음")
+                submit = st.form_submit_button("다음", use_container_width=True)
             with col2:
-                exit_button = st.form_submit_button("던전에서 퇴장하기")
+                exit_button = st.form_submit_button("던전에서 퇴장하기", use_container_width=True)
             
             if submit:
                 if user_answer == answer:
@@ -128,27 +159,32 @@ def main():
                         st.success(f"정답입니다! 🎉 {item}을(를) 획득했습니다! (+{score}점)")
                     else:
                         st.warning(f"정답입니다! 😱 하지만 {item}을(를) 획득했습니다... ({score}점)")
+                    
+                    st.session_state.questions_answered += 1
+                    
+                    if st.session_state.questions_answered >= 25:
+                        st.session_state.game_finished = True
+                        update_spreadsheet(st.session_state.name, st.session_state.total_score)
+                        st.balloons()
+                        st.success(f"🎊 {st.session_state.name}님! 축하합니다! 최종 점수는 {st.session_state.total_score}점입니다! 🎊")
                 else:
                     st.error("틀렸습니다! 다시 도전해보세요! 😢")
-                    return
-                
-                st.session_state.questions_answered += 1
-                st.session_state.current_question = random.randint(0, len(QUESTIONS)-1)
-                
-                if st.session_state.questions_answered >= 25:
-                    st.session_state.game_finished = True
-                    update_spreadsheet(st.session_state.name, st.session_state.total_score)
-                    st.balloons()
-                    st.success(f"🎊 {st.session_state.name}님! 점수는 {st.session_state.total_score}를 기록했습니다! 🎊")
                     
             if exit_button:
                 st.session_state.game_finished = True
                 update_spreadsheet(st.session_state.name, st.session_state.total_score)
                 st.balloons()
-                st.success(f"🎊 {st.session_state.name}님! 점수는 {st.session_state.total_score}를 기록했습니다! 🎊")
+                st.success(f"🎊 {st.session_state.name}님! 최종 점수는 {st.session_state.total_score}점입니다! 🎊")
 
         if not st.session_state.game_finished:
-            st.write(f"현재 점수: {st.session_state.total_score}")
+            st.sidebar.markdown(f"### 🏆 현재 점수: {st.session_state.total_score}")
+            st.sidebar.progress(st.session_state.questions_answered / 25)
+
+    if st.session_state.game_finished:
+        if st.button("새 게임 시작하기"):
+            for key in st.session_state.keys():
+                del st.session_state[key]
+            st.rerun()
 
 if __name__ == "__main__":
     main()
