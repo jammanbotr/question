@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 import random
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 import time
+from datetime import datetime
 
 st.set_page_config(page_title="JAMMANBO 문제 던전", page_icon="🎮", layout="wide")
 
@@ -16,16 +16,36 @@ def load_css():
         font-family: 'Jua', sans-serif;
     }
     
-    .item-modal {
-        background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
-        padding: 30px;
-        border-radius: 20px;
-        box-shadow: 0 0 30px rgba(0,0,0,0.4);
-        animation: pop-up 0.7s ease-out;
-        text-align: center;
-        margin: 30px 0;
+    .item-modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        animation: fadeIn 0.5s ease-out;
     }
-    
+
+    .item-modal-content {
+        background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 0 50px rgba(255,255,255,0.2);
+        text-align: center;
+        animation: scaleIn 0.5s ease-out;
+        max-width: 80%;
+    }
+
+    .sparkles {
+        font-size: 24px;
+        margin: 10px 0;
+        animation: sparkle 1s infinite;
+    }
+
     .item-title {
         font-size: 32px;
         color: #FFFFFF;
@@ -63,21 +83,12 @@ def load_css():
         color: #FF4444;
         text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
     }
-    
-    @keyframes pop-up {
-        0% { transform: scale(0); opacity: 0; }
-        70% { transform: scale(1.1); opacity: 0.7; }
-        100% { transform: scale(1); opacity: 1; }
-    }
-    
-    @keyframes glow {
-        from { box-shadow: 0 0 10px rgba(255,255,255,0.8); }
-        to { box-shadow: 0 0 20px rgba(255,255,255,1); }
-    }
-    
-    @keyframes bounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-15px); }
+
+    .total-score {
+        font-size: 24px;
+        color: white;
+        margin-top: 20px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
     }
     
     .question-card {
@@ -153,6 +164,57 @@ def load_css():
         font-weight: bold;
         margin-top: 10px;
     }
+
+    .scoreboard {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        margin: 20px 0;
+        animation: fadeIn 1s ease-out;
+    }
+
+    .score-row {
+        background: white;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .score-row.highlight {
+        background: linear-gradient(45deg, #FF6B6B22, #4ECDC422);
+        border: 2px solid #4ECDC4;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes scaleIn {
+        from { transform: scale(0.8); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes sparkle {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-15px); }
+    }
+
+    @keyframes glow {
+        from { box-shadow: 0 0 10px rgba(255,255,255,0.8); }
+        to { box-shadow: 0 0 20px rgba(255,255,255,1); }
+    }
+
     </style>
     """, unsafe_allow_html=True)
 
@@ -224,6 +286,8 @@ def init_session_state():
         st.session_state.used_questions = []
     if 'current_question' not in st.session_state:
         st.session_state.current_question = get_random_question()
+    if 'scores_history' not in st.session_state:
+        st.session_state.scores_history = []
 
 def get_random_score_item():
     item, score = random.choice(SCORE_ITEMS)
@@ -242,27 +306,63 @@ def show_item_and_next_question(item, score):
     st.session_state.total_score += score
     st.session_state.questions_answered += 1
     
+    # 더 화려한 모달 디자인
     st.markdown(f"""
-    <div class="item-modal">
-        <div class="item-title">🎉 특별한 아이템을 획득했습니다! 🎉</div>
-        <div class="item-name">{item}</div>
-        <div class="score {'positive' if score > 0 else 'negative'}">{'+' if score > 0 else ''}{score} 점</div>
+    <div class="item-modal-backdrop">
+        <div class="item-modal-content">
+            <div class="item-title">✨ 특별한 아이템을 획득했습니다! ✨</div>
+            <div class="sparkles">⭐️ 🌟 ⭐️</div>
+            <div class="item-name">{item}</div>
+            <div class="score {'positive' if score > 0 else 'negative'}">{'+' if score > 0 else ''}{score} 점</div>
+            <div class="total-score">총점: {st.session_state.total_score}점</div>
+            <div class="sparkles">⭐️ 🌟 ⭐️</div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     
     if score > 0:
         st.balloons()
     
+    time.sleep(2)  # 모달을 2초간 표시
     next_question = get_random_question()
     st.session_state.current_question = next_question
 
-def update_spreadsheet(name, score):
+def update_and_get_scoreboard(name, score):
     try:
         gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
         sheet = gc.open_by_key('1TYZ4ZXkwcL5_-ITxYyC081ruKS7vRJr2X7j1D4P-lnE').worksheet('기록')
-        sheet.append_row([len(sheet.get_all_values()), name, score])
+        
+        # 새로운 점수 추가
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        sheet.append_row([name, score, current_time])
+        
+        # 전체 데이터 가져오기
+        data = sheet.get_all_values()
+        df = pd.DataFrame(data[1:], columns=['이름', '점수', '시간'])
+        df['점수'] = pd.to_numeric(df['점수'])
+        
+        # 점수순으로 정렬
+        df = df.sort_values('점수', ascending=False)
+        return df.head(10)  # 상위 10개 반환
+        
     except Exception as e:
-        st.error(f"점수 기록에 실패했습니다. 나중에 다시 시도해주세요.")
+        st.error(f"점수 기록에 실패했습니다: {str(e)}")
+        return None
+
+def show_final_scoreboard(current_name, current_score):
+    df = update_and_get_scoreboard(current_name, current_score)
+    if df is not None:
+        st.markdown("<h2>🏆 명예의 전당 🏆</h2>", unsafe_allow_html=True)
+        
+        for i, row in df.iterrows():
+            is_current = row['이름'] == current_name and row['점수'] == current_score
+            st.markdown(f"""
+            <div class="score-row {'highlight' if is_current else ''}">
+                <span class="rank">#{i+1}</span>
+                <span class="name">{row['이름']}</span>
+                <span class="score">{int(row['점수'])}점</span>
+            </div>
+            """, unsafe_allow_html=True)
 
 def main():
     load_css()
@@ -284,13 +384,12 @@ def main():
     elif not st.session_state.game_finished:
         if st.session_state.current_question is None:
             st.session_state.game_finished = True
-            if st.session_state.name and st.session_state.total_score is not None:
-                update_spreadsheet(st.session_state.name, st.session_state.total_score)
             st.balloons()
             st.markdown(
                 f'<div class="game-over">🎊 {st.session_state.name}님! 축하합니다!<br>최종 점수는 {st.session_state.total_score}점입니다! 🎊</div>',
                 unsafe_allow_html=True
             )
+            show_final_scoreboard(st.session_state.name, st.session_state.total_score)
         else:
             current_question, answer = QUESTIONS[st.session_state.current_question]
             
@@ -302,12 +401,10 @@ def main():
                 user_answer = st.text_input("", key=f"answer_input_{st.session_state.questions_answered}").strip()
                 st.markdown('</div>', unsafe_allow_html=True)
                 
-                col1, col2, col3 = st.columns(3)
+                col1, col2 = st.columns(2)
                 with col1:
                     submit = st.form_submit_button("제출", use_container_width=True)
                 with col2:
-                    next_button = st.form_submit_button("다음 문제로", use_container_width=True)
-                with col3:
                     exit_button = st.form_submit_button("던전에서 퇴장하기", use_container_width=True)
                 
                 if submit:
@@ -332,23 +429,14 @@ def main():
                         </div>
                         """, unsafe_allow_html=True)
                 
-                if next_button:
-                    item, score = get_random_score_item()
-                    show_item_and_next_question(item, score)
-                    st.rerun()
-                
                 if exit_button:
-                    try:
-                        st.session_state.game_finished = True
-                        if st.session_state.name and st.session_state.total_score is not None:
-                            update_spreadsheet(st.session_state.name, st.session_state.total_score)
-                        st.balloons()
-                        st.markdown(
-                            f'<div class="game-over">🎊 {st.session_state.name}님!<br>최종 점수는 {st.session_state.total_score}점입니다! 🎊</div>',
-                            unsafe_allow_html=True
-                        )
-                    except Exception as e:
-                        st.error("게임 종료 중 오류가 발생했습니다.")
+                    st.session_state.game_finished = True
+                    st.balloons()
+                    st.markdown(
+                        f'<div class="game-over">🎊 {st.session_state.name}님!<br>최종 점수는 {st.session_state.total_score}점입니다! 🎊</div>',
+                        unsafe_allow_html=True
+                    )
+                    show_final_scoreboard(st.session_state.name, st.session_state.total_score)
 
             if not st.session_state.game_finished:
                 with st.sidebar:
