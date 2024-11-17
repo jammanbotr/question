@@ -65,8 +65,6 @@ SCORE_ITEMS = [
 def init_session_state():
     if 'name' not in st.session_state:
         st.session_state.name = ''
-    if 'current_question' not in st.session_state:
-        st.session_state.current_question = 0
     if 'total_score' not in st.session_state:
         st.session_state.total_score = 0
     if 'questions_answered' not in st.session_state:
@@ -74,20 +72,23 @@ def init_session_state():
     if 'game_finished' not in st.session_state:
         st.session_state.game_finished = False
     if 'used_questions' not in st.session_state:
-        st.session_state.used_questions = set()
+        st.session_state.used_questions = []
+    if 'current_question' not in st.session_state:
+        st.session_state.current_question = get_random_question()
 
 def get_random_score_item():
     item, score = random.choice(SCORE_ITEMS)
     return item, score
 
 def get_random_question():
-    available_questions = [i for i in range(len(QUESTIONS)) if i not in st.session_state.used_questions]
-    if not available_questions:
-        st.session_state.used_questions.clear()
-        available_questions = list(range(len(QUESTIONS)))
+    available_questions = [i for i in range(len(QUESTIONS)) 
+                         if i not in st.session_state.used_questions]
+    
+    if not available_questions:  # 모든 문제를 다 풀었을 경우
+        return None
     
     question_index = random.choice(available_questions)
-    st.session_state.used_questions.add(question_index)
+    st.session_state.used_questions.append(question_index)
     return question_index
 
 def update_spreadsheet(name, score):
@@ -136,66 +137,62 @@ def main():
                 st.rerun()
 
     elif not st.session_state.game_finished:
-        st.session_state.current_question = get_random_question()
-        current_question, answer = QUESTIONS[st.session_state.current_question]
-        
-        st.markdown(f"### 🎯 문제 {st.session_state.questions_answered + 1}/25")
-        
-        with st.form("question_form"):
-            st.write(current_question)
-            user_answer = st.text_input("답을 입력하세요:", key="answer_input").strip()
+        if st.session_state.current_question is None:
+            st.session_state.game_finished = True
+            update_spreadsheet(st.session_state.name, st.session_state.total_score)
+            st.balloons()
+            st.success(f"🎊 {st.session_state.name}님! 축하합니다! 최종 점수는 {st.session_state.total_score}점입니다! 🎊")
+        else:
+            current_question, answer = QUESTIONS[st.session_state.current_question]
             
-            col1, col2 = st.columns(2)
-            with col1:
-                submit = st.form_submit_button("다음", use_container_width=True)
-            with col2:
-                exit_button = st.form_submit_button("던전에서 퇴장하기", use_container_width=True)
+            st.markdown(f"### 🎯 문제 {st.session_state.questions_answered + 1}/25")
             
-            if submit:
-                # 디버깅을 위한 출력
-                st.write(f"사용자 입력: '{user_answer}'")
-                st.write(f"정답: '{answer}'")
+            with st.form("question_form"):
+                st.write(current_question)
+                user_answer = st.text_input("답을 입력하세요:", key="answer_input").strip()
                 
-                # 답안 비교 로직 수정
-                if user_answer and answer:  # 둘 다 비어있지 않은 경우에만 비교
+                col1, col2 = st.columns(2)
+                with col1:
+                    submit = st.form_submit_button("다음", use_container_width=True)
+                with col2:
+                    exit_button = st.form_submit_button("던전에서 퇴장하기", use_container_width=True)
+                
+                if submit:
+                    correct = False
                     try:
-                        if any(c.isdigit() for c in answer):  # 정답에 숫자가 포함된 경우
+                        if '.' in answer:  # 소수점이 있는 경우
                             correct = abs(float(user_answer) - float(answer)) < 0.0001
-                        else:  # 정답이 문자열인 경우
-                            correct = user_answer.strip() == answer.strip()
-                    except ValueError:
-                        correct = user_answer.strip() == answer.strip()
+                        else:  # 문자열인 경우
+                            correct = user_answer == answer
+                    except:
+                        correct = user_answer == answer
 
                     if correct:
                         item, score = get_random_score_item()
                         st.session_state.total_score += score
-                        st.session_state.questions_answered += 1  # 정답일 때만 카운트 증가
+                        st.session_state.questions_answered += 1
                         
                         if score > 0:
                             st.success(f"정답입니다! 🎉 {item}을(를) 획득했습니다! (+{score}점)")
                         else:
                             st.warning(f"정답입니다! 😱 하지만 {item}을(를) 획득했습니다... ({score}점)")
                         
-                        # 문제를 모두 풀었는지 확인
-                        if st.session_state.questions_answered >= 25:
-                            st.session_state.game_finished = True
-                            update_spreadsheet(st.session_state.name, st.session_state.total_score)
-                            st.balloons()
-                            st.success(f"🎊 {st.session_state.name}님! 축하합니다! 최종 점수는 {st.session_state.total_score}점입니다! 🎊")
-                        else:
-                            st.rerun()  # 다음 문제로 넘어가기 위해 페이지 새로고침
+                        # 다음 문제 설정
+                        next_question = get_random_question()
+                        st.session_state.current_question = next_question
+                        st.rerun()
                     else:
                         st.error("틀렸습니다! 다시 도전해보세요! 😢")
                         
-            if exit_button:
-                st.session_state.game_finished = True
-                update_spreadsheet(st.session_state.name, st.session_state.total_score)
-                st.balloons()
-                st.success(f"🎊 {st.session_state.name}님! 최종 점수는 {st.session_state.total_score}점입니다! 🎊")
+                if exit_button:
+                    st.session_state.game_finished = True
+                    update_spreadsheet(st.session_state.name, st.session_state.total_score)
+                    st.balloons()
+                    st.success(f"🎊 {st.session_state.name}님! 최종 점수는 {st.session_state.total_score}점입니다! 🎊")
 
-        if not st.session_state.game_finished:
-            st.sidebar.markdown(f"### 🏆 현재 점수: {st.session_state.total_score}")
-            st.sidebar.progress(st.session_state.questions_answered / 25)
+            if not st.session_state.game_finished:
+                st.sidebar.markdown(f"### 🏆 현재 점수: {st.session_state.total_score}")
+                st.sidebar.progress(st.session_state.questions_answered / 25)
 
     if st.session_state.game_finished:
         if st.button("새 게임 시작하기"):
