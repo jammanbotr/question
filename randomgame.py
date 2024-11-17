@@ -143,7 +143,7 @@ def main():
         
         with st.form("question_form"):
             st.write(current_question)
-            user_answer = st.text_input("답을 입력하세요:", key="answer_input")
+            user_answer = st.text_input("답을 입력하세요:", key="answer_input").strip()
             
             col1, col2 = st.columns(2)
             with col1:
@@ -152,7 +152,15 @@ def main():
                 exit_button = st.form_submit_button("던전에서 퇴장하기", use_container_width=True)
             
             if submit:
-                if user_answer == answer:
+                try:
+                    if '.' in answer:  # 정답이 소수인 경우
+                        correct = abs(float(user_answer) - float(answer)) < 0.0001
+                    else:  # 정답이 문자열인 경우
+                        correct = user_answer == answer
+                except ValueError:
+                    correct = user_answer == answer
+
+                if correct:
                     item, score = get_random_score_item()
                     st.session_state.total_score += score
                     if score > 0:
