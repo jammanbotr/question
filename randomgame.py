@@ -2,20 +2,19 @@ import streamlit as st
 import pandas as pd
 import random
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 import time
 from datetime import datetime
-import json
 
 # 페이지 설정
 st.set_page_config(
-    page_title="JAMMANBO 문제 던전", 
+    page_title="JAMMANBO 문제 던전",
     page_icon="🎮",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# CSS 로드
+# CSS 로드 함수
 def load_css():
     st.markdown("""
     <style>
@@ -25,81 +24,19 @@ def load_css():
         font-family: 'Jua', sans-serif;
     }
     
-    .item-modal-backdrop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0,0,0,0.8);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-        animation: fadeIn 0.5s ease-out;
-    }
-
-    .item-modal-content {
-        background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
-        padding: 40px;
-        border-radius: 20px;
-        box-shadow: 0 0 50px rgba(255,255,255,0.2);
+    .title {
         text-align: center;
-        animation: scaleIn 0.5s ease-out;
-        max-width: 80%;
-    }
-
-    .sparkles {
-        font-size: 24px;
-        margin: 10px 0;
-        animation: sparkle 1s infinite;
-    }
-
-    .item-title {
-        font-size: 32px;
-        color: #FFFFFF;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        margin-bottom: 20px;
-    }
-    
-    .item-name {
-        font-size: 36px;
         color: #2C3E50;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        animation: glow 1.5s ease-in-out infinite alternate;
-        padding: 15px;
-        background: rgba(255,255,255,0.95);
-        border-radius: 10px;
-        margin: 20px 0;
-        font-weight: bold;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
-    
-    .score {
-        font-size: 42px;
-        margin: 20px 0;
-        animation: bounce 1s ease infinite;
-        text-shadow: 3px 3px 6px rgba(0,0,0,0.4);
-        font-weight: bold;
-    }
-    
-    .score.positive {
-        color: #FFD700;
-        text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
-    }
-    
-    .score.negative {
-        color: #FF4444;
-        text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+        font-size: 40px;
+        text-shadow: 3px 3px 6px rgba(0,0,0,0.2);
+        animation: title-glow 2s ease-in-out infinite alternate;
+        margin: 30px 0;
+        padding: 20px;
+        background: rgba(255,255,255,0.9);
+        border-radius: 15px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
 
-    .total-score {
-        font-size: 24px;
-        color: white;
-        margin-top: 20px;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    }
-    
     .question-card {
         background: white;
         padding: 25px;
@@ -118,21 +55,17 @@ def load_css():
         font-size: 20px;
         color: #2C3E50;
         margin-bottom: 20px;
-        line-height: 1.5;
-        padding: 10px;
-        background: rgba(78, 205, 196, 0.1);
-        border-radius: 10px;
     }
-
+    
     .stButton>button {
         background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
         color: white;
         border: none;
-        padding: 15px 30px;
-        border-radius: 30px;
-        font-weight: bold;
+        padding: 10px 20px;
+        border-radius: 10px;
         font-size: 18px;
         transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     
     .stButton>button:hover {
@@ -140,32 +73,6 @@ def load_css():
         box-shadow: 0 8px 20px rgba(0,0,0,0.2);
     }
     
-    .title {
-        text-align: center;
-        color: #2C3E50;
-        font-size: 40px;
-        text-shadow: 3px 3px 6px rgba(0,0,0,0.2);
-        animation: title-glow 2s ease-in-out infinite alternate;
-        margin: 30px 0;
-        padding: 20px;
-        background: rgba(255,255,255,0.9);
-        border-radius: 15px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-
-    .stTextInput>div>div>input {
-        font-size: 18px;
-        padding: 10px 15px;
-        border-radius: 10px;
-        border: 1px solid #ddd;
-        transition: all 0.3s ease;
-    }
-
-    .stTextInput>div>div>input:focus {
-        border-color: #FF6B6B;
-        box-shadow: 0 0 10px rgba(255,107,107,0.2);
-    }
-
     .error-message {
         background: rgba(255, 68, 68, 0.1);
         padding: 15px;
@@ -173,22 +80,7 @@ def load_css():
         border-left: 4px solid #FF4444;
         margin: 15px 0;
     }
-
-    .correct-answer {
-        color: #2C3E50;
-        font-weight: bold;
-        margin-top: 10px;
-    }
-
-    .scoreboard {
-        background: white;
-        padding: 20px;
-        border-radius: 15px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        margin: 20px 0;
-        animation: fadeIn 1s ease-out;
-    }
-
+    
     .score-row {
         background: white;
         padding: 15px;
@@ -200,17 +92,17 @@ def load_css():
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         transition: all 0.3s ease;
     }
-
+    
     .score-row:hover {
         transform: translateX(5px);
         box-shadow: 0 4px 8px rgba(0,0,0,0.15);
     }
-
+    
     .score-row.highlight {
         background: linear-gradient(45deg, #FF6B6B22, #4ECDC422);
         border: 2px solid #4ECDC4;
     }
-
+    
     .game-over {
         text-align: center;
         font-size: 32px;
@@ -227,26 +119,6 @@ def load_css():
         to { opacity: 1; }
     }
 
-    @keyframes scaleIn {
-        from { transform: scale(0.8); opacity: 0; }
-        to { transform: scale(1); opacity: 1; }
-    }
-
-    @keyframes sparkle {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
-    }
-
-    @keyframes bounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-15px); }
-    }
-
-    @keyframes glow {
-        from { box-shadow: 0 0 10px rgba(255,255,255,0.8); }
-        to { box-shadow: 0 0 20px rgba(255,255,255,1); }
-    }
-
     @keyframes title-glow {
         from { text-shadow: 0 0 5px rgba(44, 62, 80, 0.1); }
         to { text-shadow: 0 0 15px rgba(44, 62, 80, 0.3); }
@@ -254,7 +126,7 @@ def load_css():
     </style>
     """, unsafe_allow_html=True)
 
-# 문제와 아이템 정의
+# 문제 정의
 QUESTIONS = [
     ["소수의 곱셈 0.5 * 1.25는?", "0.625"],
     ["소수의 곱셈 1.3 * 2.1은?", "2.73"],
@@ -283,6 +155,7 @@ QUESTIONS = [
     ["진주성에서 일본군을 상대로 승리한 장군은?", "김시민"]
 ]
 
+# 아이템 정의
 SCORE_ITEMS = [
     ("나희의 까불이 춤", 800),
     ("신영이의 화염 스카프", 700),
@@ -322,8 +195,6 @@ def init_session_state():
         st.session_state.used_questions = []
     if 'current_question' not in st.session_state:
         st.session_state.current_question = get_random_question()
-    if 'scores_history' not in st.session_state:
-        st.session_state.scores_history = []
 
 def get_random_score_item():
     item, score = random.choice(SCORE_ITEMS)
@@ -337,6 +208,43 @@ def get_random_question():
     question_index = random.choice(available_questions)
     st.session_state.used_questions.append(question_index)
     return question_index
+
+def update_and_get_scoreboard(name, score):
+    try:
+        # 인증 정보 구성
+        scopes = [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive'
+        ]
+        
+        service_account_info = dict(st.secrets["gcp_service_account"])
+        credentials = Credentials.from_service_account_info(
+            service_account_info,
+            scopes=scopes
+        )
+        
+        gc = gspread.authorize(credentials)
+        sheet = gc.open_by_key(st.secrets["spreadsheet_id"]).worksheet('기록')
+        
+        # 새로운 점수 추가
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        sheet.append_row([name, score, current_time])
+        
+        # 전체 데이터 가져오기
+        data = sheet.get_all_values()
+        df = pd.DataFrame(data[1:], columns=['이름', '점수', '시간'])
+        df['점수'] = pd.to_numeric(df['점수'])
+        
+        # 점수순으로 정렬
+        df = df.sort_values('점수', ascending=False)
+        return df.head(10)
+        
+    except Exception as e:
+        print(f"Detailed error: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        st.error(f"점수 기록에 실패했습니다: {str(e)}")
+        return pd.DataFrame(columns=['이름', '점수', '시간'])
 
 def show_item_and_next_question(item, score):
     st.session_state.total_score += score
@@ -361,43 +269,6 @@ def show_item_and_next_question(item, score):
     time.sleep(2)
     next_question = get_random_question()
     st.session_state.current_question = next_question
-
-
-def update_and_get_scoreboard(name, score):
-    try:
-        # 인증 정보 직접 구성
-        credentials_dict = dict(st.secrets["gcp_service_account"])
-        
-        # universe_domain 제거 (필요없는 키)
-        if "universe_domain" in credentials_dict:
-            del credentials_dict["universe_domain"]
-        
-        scope = ['https://spreadsheets.google.com/feeds',
-                 'https://www.googleapis.com/auth/drive']
-        
-        credentials = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
-        gc = gspread.authorize(credentials)
-        
-        # 스프레드시트 열기
-        sheet = gc.open_by_key(st.secrets["spreadsheet_id"]).worksheet('기록')
-        
-        # 새로운 점수 추가
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        sheet.append_row([name, score, current_time])
-        
-        # 전체 데이터 가져오기
-        data = sheet.get_all_values()
-        df = pd.DataFrame(data[1:], columns=['이름', '점수', '시간'])
-        df['점수'] = pd.to_numeric(df['점수'])
-        
-        # 점수순으로 정렬
-        df = df.sort_values('점수', ascending=False)
-        return df.head(10)
-        
-    except Exception as e:
-        print(f"Detailed error: {str(e)}")  # 상세 에러 출력
-        st.error(f"점수 기록에 실패했습니다: {str(e)}")
-        return pd.DataFrame(columns=['이름', '점수', '시간'])
 
 def show_final_scoreboard(current_name, current_score):
     df = update_and_get_scoreboard(current_name, current_score)
